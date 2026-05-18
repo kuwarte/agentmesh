@@ -1,0 +1,13 @@
+2026/18/05: started contract part
+2026/18/05: init foundry
+2026/18/05: created APIRegistry.sol
+2026/18/05: created APIRegistry.t.sol
+2026/18/05: created X402Facilitator.sol
+2026/18/05: created X402Facilitator.t.sol
+2026/18/05: generate abi via forge build
+2026/18/05: init express
+2026/18/05: added boilerplate
+2026/18/05: generate placeholders for routes, middlewares and services
+2026/18/06: continue: server fix
+
+
