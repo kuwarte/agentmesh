@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 dotenv.config();
 
-// import { blockchainService } from "./services/blockchain.service";
+import { blockchainService } from "./services/blockchain.service";
 // import apiRoutes from "./routes/api.routes";
 // import paymentRoutes from "./routes/payment.routes";
 // import registryRoutes from "./routes/registry.routes";
@@ -31,7 +31,7 @@ app.get("/", (_req: Request, res: Response) => {
 		status: "running",
 		chain: {
 			network: process.env.CHAIN_NAME || "morphl2",
-			// connected: blockchainService.isReady(),
+			connected: blockchainService.isReady(),
 		},
 		docs: {
 			catalog: "/api/v1/catalog",
@@ -47,12 +47,14 @@ const PORT = Number(process.env.PORT) || 3001;
 async function bootstrap() {
 	try {
 		console.log("[server] Initializing blockchain service...");
+		await blockchainService.init();
 
 		app.listen(PORT, () => {
-			console.log(`\nAgentMesh Gateway running on http://localhost:${PORT}`);
-			// console.log(`   API catalog     : http://localhost:${PORT}/api/v1/catalog`);
-			// console.log(`   Registry        : http://localhost:${PORT}/registry`);
-			// console.log(`   Payment status  : http://localhost:${PORT}/payment/status\n`);
+			console.log(`\n🕸️ AgentMesh Gateway running on http://localhost:${PORT}`);
+			console.log(`   Chain connected : ${blockchainService.isReady()}`);
+			console.log(`   API catalog     : http://localhost:${PORT}/api/v1/catalog`);
+			console.log(`   Registry        : http://localhost:${PORT}/registry`);
+			console.log(`   Payment status  : http://localhost:${PORT}/payment/status\n`);
 		});
 	} catch (err) {
 		console.error("[server] Failed to start:", err);
