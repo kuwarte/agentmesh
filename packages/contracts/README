@@ -1,6 +1,6 @@
 CONTRACTS
 [~] APIRegistry.sol
-[x] X402Facilitator.sol
+[~] X402Facilitator.sol
 -------------------------------------------------------------------------------------
 LOG
 - Created init APIRegistry.sol & APIRegistry.t.sol
@@ -18,7 +18,19 @@ LOG
     - no linkage to payment layer 
     - no ownership transfer / admin ctrl
     - weak api design
-- Still TODO: X402Facilitator.sol, APIRegistry improvements
+Created init X402Facilitator.sol & X402Facilitator.t.sol
+    FUNC:
+    - accept payments intent (settle())
+    - transfers USDC (ERC20)
+    - splits fee (provider and treasury)
+    - prevent replays atk
+    - checks deadline
+    - emits settlement event
+    LACK:
+    - no real EIP-3009 verification => cryptographic payment protocol
+    - no cryptographic binding
+    - no authorization proof layer
+- Still TODO: X402Facilitator and APIRegistry improvements
 -------------------------------------------------------------------------------------
 GETTING STARTED
 - after cloning this repository, run the following steps:
@@ -92,10 +104,8 @@ PROJECT STRUCTURE
     src/
       APIRegistry.sol      => API discovery => pricing layer
       X402Facilitator.sol  => payment verification => settlement layer
-
     test/
       APIRegistry.t.sol    => unit tests for registry
-
     script/
       Deploy.s.sol         => deployment automation
 -------------------------------------------------------------------------------------
