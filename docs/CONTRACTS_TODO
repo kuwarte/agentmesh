@@ -1,0 +1,142 @@
+┌──────────────────────┐
+│   APIRegistry.sol    │  ← discovery + pricing
+└─────────┬────────────┘
+          │
+          v
+┌──────────────────────┐
+│ X402Facilitator.sol  │  ← payment settlement
+└─────────┬────────────┘
+          │
+          v
+   Provider Middleware (Express)
+          │
+          v
+       API Response
+
+CONTRACTS_TODO:
+
+[/] Setup Foundry
+    - forge init packages/contracts/ 
+    - install dep 
+        - OpenZeppelin <=ERC20 interaction (USDC)
+    - workflow 
+        - start local blockchain command: anvil (http://127.0.0.1:8545)
+        - compile contracts command: forge build
+        - run unit test: forge test -vv
+            - it runs test/*.t.sol
+        - private keys (copy)
+        - deploy Deploy.s.sol <= automating .sol deployment
+        - deploy .sol /test/* <= logic test for e.g. register, fetch, validate <= forge test
+        - deploy contracts (
+                            forge build 
+                            forge script script/Deploy.s.sol \
+                            --rpc-url http://127.0.0.1:8545 \
+                            --private-key <ANVIL_PRIVATE_KEY> \
+                            --broadcast)
+                            )
+        - compiles contracts, runs scripts, script exe, send transact to anvil, print deployed addr
+        - do manual testing
+    - workflow summary
+        1. anvil => RPC
+        2. forge build
+        3. forge test
+        4. forge script script/Deploy.s.sol \
+            --rpc-url http://127.0.0.1:8545 \
+            --private-key <ANVIL_PRIVATE_KEY> \
+            --broadcast
+        5. cast send / call (manual testing)
+            sample:
+                cast send <REGISTRY_ADDRESS> \
+                "registerAPI(string,string,uint256)" \
+                "BTC API" \
+                "https://api.com" \
+                1000 \
+                --private-key <ANVIL_PRIVATE_KEY> \
+                --rpc-url http://127.0.0.1:8545
+
+                cast call <REGISTRY_ADDRESS> \
+                "getAPI(bytes32)" <API_ID>
+
+[x] APIRegistry.sol (Discovery Layer)
+- store APIs + pricing so agents can discover
+REQUIREMENTS:
+    - core storage
+    - API struct
+    - core func
+        - register API
+            - adds API to registry
+            - Generates unique ID
+            - Emits event
+        - get API (used by ff:)
+            - agents
+            - backend
+            - frontend marketplace
+        - updateAPI (for provider)
+            - change price
+            - disable API
+        - viewHelpers (totalAPI, getAPIId)
+            - frontend listing
+        - main entry (sample func)
+            - function settle
+                (
+                    address payer,
+                    address provider,
+                    uint256 amount,
+                    bytes signature,
+                    bytes32 nonce,
+                    uint256 deadline
+                )
+TODO:
+- store APIs
+- register endpoint
+- update price
+- list APIs
+- emit events
+
+[x] x402Facilitator.sol (Payment Layer)
+- verifies USDC payment and unlocks API access
+REQUIREMENTS:
+    - verify payment signature (EIP-3009): (checks ff:)
+        - signature valid
+        - correct spender
+        - correct amount
+        - not expired
+    - exe USDC transfer (flow:)
+        - take signed authorization
+        - call USDC transferWithAuthorization
+        - move funds
+    - fee split
+        - provider gets 99%
+        - protocol gets 1%
+    - nonce protection
+        - prevent replay atk
+TODO:
+- verify EIP-3009 signature
+- process USDC transfer
+- prevent replay attacks
+- enforce deadlines
+- optional fee split
+
+[x] Switch to Morph Testnet
+    - edit foundry.toml
+        - [rpc_endpoints]
+            morph = "https://<MORPH_RPC_URL>"
+    - config env
+        - export PRIVATE_KEY=0xYOUR_METAMASK_PRIVATE_KEY
+        - export RPC_URL=https://<MORPH_RPC_URL>
+    - deploy to morph
+        forge script script/Deploy.s.sol \
+        --rpc-url $RPC_URL \
+        --private-key $PRIVATE_KEY \
+        --broadcast \
+        --verify
+
+CONNECTION:
+Agent => APIRegistry (GET endpoint + price)
+Agent => Provider API (res: http_stat_code: 402: Payment Required)
+Agent => X402Facilitator (calls settle())
+Provider => returns API response
+
+[x] COMPLETED
+- proceed to backend/
+
