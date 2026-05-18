@@ -57,7 +57,7 @@ CONTRACTS_TODO:
                 cast call <REGISTRY_ADDRESS> \
                 "getAPI(bytes32)" <API_ID>
 
-[x] APIRegistry.sol (Discovery Layer)
+[~] APIRegistry.sol (Discovery Layer)
 - store APIs + pricing so agents can discover
 REQUIREMENTS:
     - core storage
@@ -93,7 +93,7 @@ TODO:
 - list APIs
 - emit events
 
-[x] x402Facilitator.sol (Payment Layer)
+[~] x402Facilitator.sol (Payment Layer)
 - verifies USDC payment and unlocks API access
 REQUIREMENTS:
     - verify payment signature (EIP-3009): (checks ff:)
@@ -137,6 +137,6 @@ Agent => Provider API (res: http_stat_code: 402: Payment Required)
 Agent => X402Facilitator (calls settle())
 Provider => returns API response
 
-[x] COMPLETED
-- proceed to backend/
+[x] if COMPLETED
+        then proceed to backend/
 
