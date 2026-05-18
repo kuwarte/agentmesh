@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { blockchainService, PaymentPayload } from "../services/blockchain.service";
-// import { nonceCache } from "../services/nonce.cache";
-
-// TODO: implementation of nonce
+import { nonceService } from "../services/nonce.service";
 
 declare global {
 	namespace Express {
@@ -51,9 +49,9 @@ export function requirePayment(priceRaw: bigint, provider: string) {
 			});
 		}
 
-		// if (nonceCache.has(nonce)) {
-		// 	return res.status(402).json({ error: "Nonce already used" });
-		// }
+		if (nonceService.has(nonce)) {
+			return res.status(402).json({ error: "Nonce already used" });
+		}
 
 		const payload: PaymentPayload = {
 			provider: providerHeader,
@@ -72,10 +70,10 @@ export function requirePayment(priceRaw: bigint, provider: string) {
 			});
 		}
 
-		// const ok = nonceCache.consume(nonce, providerHeader, amount);
-		// if (!ok) {
-		// 	return res.status(402).json({ error: "Nonce race condition" });
-		// }
+		const ok = nonceService.consume(nonce, providerHeader, amount);
+		if (!ok) {
+			return res.status(402).json({ error: "Nonce race condition" });
+		}
 
 		req.paymentPayload = payload;
 		req.apiPrice = priceRaw;
