@@ -5,19 +5,30 @@ CONTRACTS
 LOG
 * Created init APIRegistry.sol & APIRegistry.t.sol
     FUNC:
-    - register API
-    - store API (bc state)
-    - list all API (arr)
-    - get API provider
-    - update API
+    - register API endpoints
+    - store API metadata on-chain
+    - list all registered APIs
+    - query APIs by provider
+    - update API pricing/status
     - query API details
-    - utils
+    - active/inactive API checks
+    - utility helpers (total APIs, provider mappings)
+    - event emission for indexing/frontend tracking
+    ADDED:
+    - NatSpec documentation/comments
+    - API lifecycle documentation
+    - APIDeactivated event
+    - clearer discovery layer architecture
+    - provider/API mapping explanations
+    - usage flow comments for agents/providers
     LACK:
     - payment enforcement
-    - access control for API usage
-    - no linkage to payment layer 
-    - no ownership transfer / admin ctrl
-    - weak api design
+    - x402 settlement linkage
+    - API access validation
+    - ownership transfer/admin controls
+    - endpoint ownership verification
+    - categories/tags indexing
+    - staking/reputation system
 * Created init X402Facilitator.sol & X402Facilitator.t.sol
     FUNC:
     - accept payments intent (settle())
