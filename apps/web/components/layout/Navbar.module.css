@@ -60,6 +60,7 @@
   display: flex;
   align-items: center;
   gap: 0.5em;
+  font-weight: 500;
   font-family: var(--font-body);
   color: var(--color-accent);
   border-color: var(--color-border-strong);
