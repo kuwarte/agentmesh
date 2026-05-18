@@ -1,0 +1,89 @@
+BACKEND
+[x] Provider API Server
+[x] x402 Middleware
+[x] Blockchain Service Layer
+[x] Registry Gateway API
+-------------------------------------------------------------------------------------
+LOG
+* Created express boilerplate server
+    - mock API routes
+-------------------------------------------------------------------------------------
+GETTING STARTED
+- after cloning this repository, run the following steps:
+    1. Move into backend folder
+            cd apps/backend
+    2. Install Node.js dependencies (IMPORTANT)
+            pnpm install
+    3. Run server
+            pnpm dev
+    4. Test APIs with Curl/Postman
+            server_runs_at: http://localhost:3001
+-------------------------------------------------------------------------------------
+REQUIREMENTS
+- Node.js 18+
+- pnpm package manager
+-------------------------------------------------------------------------------------
+DEPENDENCIES
+- express => HTTP server
+- cors => different origin API access
+- dotenv => env config
+- ethers => blockchain interaction
+-------------------------------------------------------------------------------------
+DEV DEPENDENCIES
+-typescript
+- ts-node-dev
+- @types/node
+- @types/express
+- @types/cors
+-------------------------------------------------------------------------------------
+API ENDPOINTS
+    GET /api/btc
+        - ret mock btc data
+-------------------------------------------------------------------------------------
+SMART CONTRACT CONNECTION
+    - the backend will connect to:
+        1. APIRegistry.sol
+            PURPOSE
+            - store registered APIs
+            - retrieve API endpoint & pricing
+            - allow discovery for agents & frontend
+            TODO:
+            * backend will read registry via ethers.js
+            * replace local mock registry
+        2. X402Facilitator.sol
+            PURPOSE
+            - verify payments
+            - enforce nonce & deadline rules
+            - execute USDC transfers
+            - unlock API access after settlement
+            TODO:
+            - backend calls settle() function
+            - validates payment before returning API response
+-------------------------------------------------------------------------------------
+TODO
+1. Backend Core:
+    [] Implement API registry reader (ethers.js)
+    [] Add x402 middleware layer
+    [] Implement HTTP 402 response flow
+    [] Add request authentication headers
+    [] Add API keyless access model (payment-based auth)
+2. Blockchain Integration:
+    [] Connect to APIRegistry.sol (read APIs)
+    [] Connect to X402Facilitator.sol (settle payments)
+    [] Add contract address config via env
+    [] Add RPC support (Anvil / Morph testnet)
+3. Security / Reliability:
+    [] Add nonce tracking (off-chain cache)
+    [] Validate payment deadlines 
+    [] Add request replay protection (middleware layer)
+    [] Add rate limiting (optional)
+4. Frontend Connection:
+    [] Expose registry API endpoint
+    [] Provide API metadata for UI
+    [] Enable provider registration flow
+5. Agent Flow:
+    [] Implement x402 client simulation script
+    [] Build request retry logic after payment
+    [] Add signed transaction flow (EIP-3009)
+
+
