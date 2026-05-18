@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
- * @title X402PaymentFacilitator
+ * @title X402Facilitator
  * @author Defi-nitely Broke
  * @notice Facilitates x402 payments from AI agents to API providers
  * @dev Implements signature-based payment authorization with replay protection
@@ -30,7 +30,7 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
  * 4. Transfers USDC to provider (minus fee)
  * 5. Transfers fee to treasury
  */
-contract X402PaymentFacilitator {
+contract X402Facilitator {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
