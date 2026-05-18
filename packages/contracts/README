@@ -22,106 +22,84 @@ LOG
 -------------------------------------------------------------------------------------
 GETTING STARTED
 - after cloning this repository, run the following steps:
-
-1. Move into contracts folder
-        cd packages/contracts
-
-2. Install Foundry dependencies (IMPORTANT)
-        forge install
-
-This installs forge-std into:
-        lib/forge-std
-
-If imports fail, run:
-        forge install foundry-rs/forge-std
-
-3. Build contracts
-        forge build
-
-4. Run tests
-        forge test -vv
+    1. Move into contracts folder
+            cd packages/contracts
+    2. Install Foundry dependencies (IMPORTANT)
+            forge install
+        2.1. This installs forge-std into:
+                lib/forge-std
+        2.2. If imports fail, run:
+                forge install foundry-rs/forge-std
+    3. Build contracts
+            forge build
+    4. Run tests
+            forge test -vv
 -------------------------------------------------------------------------------------
 CLEAN SETUP 
 - if something breaks
-
-If forge-std is corrupted:
-        rm -rf lib
-        forge install
-
-If cache issues occur:
-        forge clean
-        forge build
+    If forge-std is corrupted:
+            rm -rf lib
+            forge install
+    If cache issues occur:
+            forge clean
+            forge build
 -------------------------------------------------------------------------------------
 LOCAL BLOCKCHAIN TESTING (ANVIL)
-
-1. Start local chain
-        anvil
-
-This runs at:
-        http://127.0.0.1:8545
-
-It also prints private keys you can use for testing.
+    1. Start local chain
+            anvil
+    This runs at:
+            http://127.0.0.1:8545
+    It also prints private keys you can use for testing.
 -------------------------------------------------------------------------------------
 DEPLOYMENT FLOW (LOCAL)
-
-1. Build contracts
-        forge build
-
-2. Deploy using script
-        forge script script/Deploy.s.sol \
-        --rpc-url http://127.0.0.1:8545 \
-        --private-key <ANVIL_PRIVATE_KEY> \
-        --broadcast
-
-This will:
-    - compile contracts
-    - execute Deploy.s.sol
-    - deploy APIRegistry + X402Facilitator
-    - print contract addresses
+    1. Build contracts
+            forge build
+    2. Deploy using script
+            forge script script/Deploy.s.sol \
+            --rpc-url http://127.0.0.1:8545 \
+            --private-key <ANVIL_PRIVATE_KEY> \
+            --broadcast
+    This will:
+        - compile contracts
+        - execute Deploy.s.sol
+        - deploy APIRegistry + X402Facilitator
+        - print contract addresses
 -------------------------------------------------------------------------------------
 MANUAL TESTING (CAST)
-
-Register API
-        cast send <REGISTRY_ADDRESS> \
-        "registerAPI(string,string,uint256)" \
-        "BTC API" \
-        "https://api.com" \
-        1000 \
-        --private-key <PRIVATE_KEY> \
-        --rpc-url http://127.0.0.1:8545
-
-Get API
-        cast call <REGISTRY_ADDRESS> \
-        "getAPI(bytes32)" <API_ID>
+    Register API
+            cast send <REGISTRY_ADDRESS> \
+            "registerAPI(string,string,uint256)" \
+            "BTC API" \
+            "https://api.com" \
+            1000 \
+            --private-key <PRIVATE_KEY> \
+            --rpc-url http://127.0.0.1:8545
+    Get API
+            cast call <REGISTRY_ADDRESS> \
+            "getAPI(bytes32)" <API_ID>
 -------------------------------------------------------------------------------------
 BUILD / TEST COMMANDS
-
-Compile
-        forge build
-
-Run tests
-        forge test
-
-Verbose tests
-        forge test -vv
-
-Very verbose (debug)
-        forge test -vvvv
+    1. Compile
+            forge build
+    2. Run tests
+            forge test
+    3. Verbose tests
+            forge test -vv
+    4. Very verbose (debug)
+            forge test -vvvv
 -------------------------------------------------------------------------------------
 PROJECT STRUCTURE
+    src/
+      APIRegistry.sol      => API discovery => pricing layer
+      X402Facilitator.sol  => payment verification => settlement layer
 
-src/
-  APIRegistry.sol      => API discovery => pricing layer
-  X402Facilitator.sol  => payment verification => settlement layer
+    test/
+      APIRegistry.t.sol    => unit tests for registry
 
-test/
-  APIRegistry.t.sol    => unit tests for registry
-
-script/
-  Deploy.s.sol         => deployment automation
+    script/
+      Deploy.s.sol         => deployment automation
 -------------------------------------------------------------------------------------
 WORKFLOW SUMMARY
-
 1. anvil
 2. forge install
 3. forge build
