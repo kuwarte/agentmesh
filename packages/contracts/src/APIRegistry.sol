@@ -83,7 +83,7 @@ contract APIRegistry {
 	 * @dev Generates unique API ID using name, sender, and timestamp
 	 * @param name Human-readable name for the API
 	 * @param endpoint Full URL endpoint for the API
-	 * @param pricePerCall Cost per API call in USDC (6 decimals, e.g., 10000 = $0.01)
+	 * @param pricePerCall Cost per API call in USDC smallest units (6 decimals)
 	 * @return apiId The unique identifier for the registered API
 	 *
 	 * Requirements:

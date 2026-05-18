@@ -31,16 +31,19 @@ LOG
     - staking/reputation system
 * Created init X402Facilitator.sol & X402Facilitator.t.sol
     FUNC:
-    - accept payments intent (settle())
-    - transfers USDC (ERC20)
-    - splits fee (provider and treasury)
-    - prevent replays atk
-    - checks deadline
-    - emits settlement event
+    - accept payment intent via settle()
+    - verifies off-chain signature (basic ECDSA auth)
+    - transfers USDC via ERC20 transferFrom()
+    - splits payment (provider + treasury fee)
+    - prevents replay attacks using nonce tracking
+    - enforces deadline expiration
+    - emits PaymentSettled event for indexing
     LACK:
-    - no real EIP-3009 verification => cryptographic payment protocol
-    - no cryptographic binding
-    - no authorization proof layer
+    - no native EIP-3009 (transferWithAuthorization) support
+    - no full EIP-712 typed data structure
+    - relies on ERC20 allowance (approve() required once)
+    - simplified cryptographic binding (custom hash scheme)
+    - no on-chain authorization state validation (true USDC flow)
 - Still TODO: X402Facilitator and APIRegistry improvements
 -------------------------------------------------------------------------------------
 GETTING STARTED
