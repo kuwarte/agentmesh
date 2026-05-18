@@ -19,7 +19,7 @@ contract X402FacilitatorTest is Test {
 	using ECDSA for bytes32;
 	using MessageHashUtils for bytes32;
 
-	X402PaymentFacilitator facilitator;
+	X402Facilitator facilitator;
 	MockUSDC usdc;
 
 	address payer = address(0xA1);
@@ -30,7 +30,9 @@ contract X402FacilitatorTest is Test {
 
 	function setUp() public {
 		usdc = new MockUSDC();
-		facilitator = new X402PaymentFacilitator(address(usdc), treasury);
+		facilitator = new X402Facilitator(address(usdc), treasury);
+
+		payer = vm.addr(payerPrivateKey);
 
 		usdc.mint(payer, 1000 ether);
 
@@ -51,6 +53,7 @@ contract X402FacilitatorTest is Test {
 		bytes memory signature = abi.encodePacked(r, s, v);
 
 		vm.prank(payer);
+
 		facilitator.settle(provider, amount, nonce, deadline, signature);
 
 		uint256 fee = (amount * 100) / 10000;
