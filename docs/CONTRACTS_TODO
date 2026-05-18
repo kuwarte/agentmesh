@@ -57,7 +57,7 @@ CONTRACTS_TODO:
                 cast call <REGISTRY_ADDRESS> \
                 "getAPI(bytes32)" <API_ID>
 
-[~] APIRegistry.sol (Discovery Layer)
+[/] APIRegistry.sol (Discovery Layer)
 - store APIs + pricing so agents can discover
 REQUIREMENTS:
     - core storage
