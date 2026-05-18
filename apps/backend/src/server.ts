@@ -49,7 +49,7 @@ async function bootstrap() {
 		console.log("[server] Initializing blockchain service...");
 
 		app.listen(PORT, () => {
-			console.log(`\n🕸️ AgentMesh Gateway running on http://localhost:${PORT}`);
+			console.log(`\nAgentMesh Gateway running on http://localhost:${PORT}`);
 			// console.log(`   API catalog     : http://localhost:${PORT}/api/v1/catalog`);
 			// console.log(`   Registry        : http://localhost:${PORT}/registry`);
 			// console.log(`   Payment status  : http://localhost:${PORT}/payment/status\n`);

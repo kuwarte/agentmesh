@@ -1,10 +1,177 @@
 import { ethers } from "ethers";
 import APIRegistry from "../../../../packages/contracts/out/APIRegistry.sol/APIRegistry.json";
+import X402Facilitator from "../../../../packages/contracts/out/X402Facilitator.sol/X402Facilitator.json";
 
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+const RPC_URL = process.env.RPC_URL || "http://127.0.0.1:8545";
 
-export const registryContract = new ethers.Contract(
-	process.env.REGISTRY_ADDRESS!,
-	APIRegistry.abi,
-	provider
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+
+// gateway signer !!ONLY used for reading & optional admin calls
+const signer = new ethers.Wallet(process.env.GATEWAY_PRIVATE_KEY!, provider);
+
+// contracts
+const registry = new ethers.Contract(process.env.API_REGISTRY_ADDRESS!, APIRegistry.abi, provider);
+
+const facilitator = new ethers.Contract(
+	process.env.X402_FACILITATOR_ADDRESS!,
+	X402Facilitator.abi,
+	signer
 );
+
+// types
+export interface PaymentPayload {
+	provider: string;
+	amount: bigint;
+	nonce: string;
+	deadline: number;
+	signature: string;
+}
+
+// service
+class BlockchainService {
+	private ready = false;
+
+	async init() {
+		try {
+			const network = await provider.getNetwork();
+			console.log(`[blockchain] connected chainId=${network.chainId}`);
+			this.ready = true;
+		} catch (err) {
+			console.warn("[blockchain] RPC not available");
+			this.ready = false;
+		}
+	}
+
+	isReady() {
+		return this.ready;
+	}
+
+	// signature verification
+	verifyPayment(payload: PaymentPayload) {
+		try {
+			const facilitatorAddress = process.env.X402_FACILITATOR_ADDRESS!;
+
+			const encoded = ethers.solidityPacked(
+				["address", "address", "address", "uint256", "bytes32", "uint256"],
+				[
+					facilitatorAddress,
+					payload.provider, // verify off-chain only
+					payload.provider,
+					payload.amount,
+					payload.nonce,
+					payload.deadline,
+				]
+			);
+
+			const hash = ethers.keccak256(encoded);
+			const ethSignedHash = ethers.hashMessage(ethers.getBytes(hash));
+
+			const recovered = ethers.recoverAddress(ethSignedHash, payload.signature);
+
+			if (!ethers.isAddress(recovered)) {
+				return { valid: false, reason: "Invalid signature" };
+			}
+
+			if (payload.deadline < Math.floor(Date.now() / 1000)) {
+				return { valid: false, reason: "Expired signature" };
+			}
+
+			return { valid: true, signer: recovered };
+		} catch (err: any) {
+			return { valid: false, reason: err.message };
+		}
+	}
+
+	async settlePayment(payload: PaymentPayload) {
+		try {
+			const tx = await facilitator.settle(
+				payload.provider,
+				payload.amount,
+				payload.nonce,
+				payload.deadline,
+				payload.signature
+			);
+
+			const receipt = await tx.wait();
+
+			return {
+				success: true,
+				txHash: receipt.hash,
+			};
+		} catch (err: any) {
+			return {
+				success: false,
+				error: err.reason || err.message,
+			};
+		}
+	}
+
+	// registry read
+	async getAllAPIs() {
+		try {
+			const ids = await registry.getAllAPIs();
+
+			const results = await Promise.all(
+				ids.map(async (id: string) => {
+					const api = await registry.getAPI(id);
+
+					return {
+						apiId: id,
+						provider: api.provider,
+						name: api.name,
+						endpoint: api.endpoint,
+						pricePerCall: api.pricePerCall,
+						active: api.active,
+					};
+				})
+			);
+
+			return results;
+		} catch (err) {
+			console.error("[registry] failed:", err);
+			return [];
+		}
+	}
+
+	async getAPI(apiId: string) {
+		try {
+			const api = await registry.getAPI(apiId);
+
+			return {
+				apiId,
+				provider: api.provider,
+				name: api.name,
+				endpoint: api.endpoint,
+				pricePerCall: api.pricePerCall,
+				active: api.active,
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	// USDC bal
+	async getUSDCBalance(address: string) {
+		try {
+			const usdc = new ethers.Contract(
+				process.env.USDC_ADDRESS!,
+				[
+					"function balanceOf(address) view returns (uint256)",
+					"function decimals() view returns (uint8)",
+				],
+				provider
+			);
+
+			const [balance, decimals] = await Promise.all([
+				usdc.balanceOf(address),
+				usdc.decimals(),
+			]);
+
+			return ethers.formatUnits(balance, decimals);
+		} catch {
+			return "0";
+		}
+	}
+}
+
+export const blockchainService = new BlockchainService();
