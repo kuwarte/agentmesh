@@ -3,7 +3,7 @@ CONTRACTS
 [~] X402Facilitator.sol
 -------------------------------------------------------------------------------------
 LOG
-- Created init APIRegistry.sol & APIRegistry.t.sol
+* Created init APIRegistry.sol & APIRegistry.t.sol
     FUNC:
     - register API
     - store API (bc state)
@@ -18,7 +18,7 @@ LOG
     - no linkage to payment layer 
     - no ownership transfer / admin ctrl
     - weak api design
-Created init X402Facilitator.sol & X402Facilitator.t.sol
+* Created init X402Facilitator.sol & X402Facilitator.t.sol
     FUNC:
     - accept payments intent (settle())
     - transfers USDC (ERC20)
