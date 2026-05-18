@@ -1,21 +1,24 @@
-FOUNDRY
-- Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.
-
--------------------------------------------------------------------------------------
-Foundry consists of:
-- Forge: Ethereum testing framework (like Truffle, Hardhat and DappTools)
-- Cast: Swiss army knife for interacting with EVM smart contracts
-- Anvil: Local Ethereum node (like Ganache / Hardhat Network)
-- Chisel: Solidity REPL
-
--------------------------------------------------------------------------------------
-DOCS
-https://book.getfoundry.sh/
-
+CONTRACTS
+[~] APIRegistry.sol
+[x] X402Facilitator.sol
 -------------------------------------------------------------------------------------
 LOG
-- Created sample APIRegistry.sol & APIRegistry.t.sol
-
+- Created init APIRegistry.sol & APIRegistry.t.sol
+    FUNC:
+    - register API
+    - store API (bc state)
+    - list all API (arr)
+    - get API provider
+    - update API
+    - query API details
+    - utils
+    LACK:
+    - payment enforcement
+    - access control for API usage
+    - no linkage to payment layer 
+    - no ownership transfer / admin ctrl
+    - weak api design
+- Still TODO: X402Facilitator.sol, APIRegistry improvements
 -------------------------------------------------------------------------------------
 GETTING STARTED
 - after cloning this repository, run the following steps:
@@ -37,7 +40,6 @@ If imports fail, run:
 
 4. Run tests
         forge test -vv
-
 -------------------------------------------------------------------------------------
 CLEAN SETUP 
 - if something breaks
@@ -49,7 +51,6 @@ If forge-std is corrupted:
 If cache issues occur:
         forge clean
         forge build
-
 -------------------------------------------------------------------------------------
 LOCAL BLOCKCHAIN TESTING (ANVIL)
 
@@ -60,7 +61,6 @@ This runs at:
         http://127.0.0.1:8545
 
 It also prints private keys you can use for testing.
-
 -------------------------------------------------------------------------------------
 DEPLOYMENT FLOW (LOCAL)
 
@@ -78,7 +78,6 @@ This will:
     - execute Deploy.s.sol
     - deploy APIRegistry + X402Facilitator
     - print contract addresses
-
 -------------------------------------------------------------------------------------
 MANUAL TESTING (CAST)
 
@@ -94,7 +93,6 @@ Register API
 Get API
         cast call <REGISTRY_ADDRESS> \
         "getAPI(bytes32)" <API_ID>
-
 -------------------------------------------------------------------------------------
 BUILD / TEST COMMANDS
 
@@ -109,7 +107,6 @@ Verbose tests
 
 Very verbose (debug)
         forge test -vvvv
-
 -------------------------------------------------------------------------------------
 PROJECT STRUCTURE
 
@@ -122,7 +119,6 @@ test/
 
 script/
   Deploy.s.sol         => deployment automation
-
 -------------------------------------------------------------------------------------
 WORKFLOW SUMMARY
 
@@ -132,7 +128,6 @@ WORKFLOW SUMMARY
 4. forge test
 5. forge script Deploy.s.sol --broadcast
 6. cast send / cast call (manual testing)
-
 -------------------------------------------------------------------------------------
 NOTES
 - forge-std is required for tests and scripts
