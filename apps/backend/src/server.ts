@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { blockchainService } from "./services/blockchain.service";
-// import apiRoutes from "./routes/api.routes";
+import apiRoutes from "./routes/api.routes";
 // import paymentRoutes from "./routes/payment.routes";
 // import registryRoutes from "./routes/registry.routes";
 
@@ -19,7 +19,7 @@ app.use((req, _res, next) => {
 });
 
 // TODO: routes
-// app.use("/api/v1", apiRoutes);
+app.use("/api/v1", apiRoutes);
 // app.use("/payment", paymentRoutes);
 // app.use("/registry", registryRoutes);
 
@@ -50,9 +50,9 @@ async function bootstrap() {
 		await blockchainService.init();
 
 		app.listen(PORT, () => {
-			console.log(`\n🕸️ AgentMesh Gateway running on http://localhost:${PORT}`);
+			console.log(`\nAgentMesh Gateway running on http://localhost:${PORT}`);
 			console.log(`   Chain connected : ${blockchainService.isReady()}`);
-			console.log(`   API catalog     : http://localhost:${PORT}/api/v1/catalog`);
+			console.log(`   API BTC sample  : http://localhost:${PORT}/api/v1/btc`);
 			console.log(`   Registry        : http://localhost:${PORT}/registry`);
 			console.log(`   Payment status  : http://localhost:${PORT}/payment/status\n`);
 		});
