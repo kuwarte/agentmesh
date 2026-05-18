@@ -102,12 +102,12 @@ BUILD / TEST COMMANDS
 -------------------------------------------------------------------------------------
 PROJECT STRUCTURE
     src/
-      APIRegistry.sol      => API discovery => pricing layer
-      X402Facilitator.sol  => payment verification => settlement layer
+          APIRegistry.sol      => API discovery => pricing layer
+          X402Facilitator.sol  => payment verification => settlement layer
     test/
-      APIRegistry.t.sol    => unit tests for registry
+          APIRegistry.t.sol    => unit tests for registry
     script/
-      Deploy.s.sol         => deployment automation
+          Deploy.s.sol         => deployment automation
 -------------------------------------------------------------------------------------
 WORKFLOW SUMMARY
 1. anvil
