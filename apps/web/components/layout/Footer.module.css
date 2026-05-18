@@ -1,0 +1,128 @@
+/* ============================================================
+   FOOTER — scoped module styles
+   Base grid/column styles live in globals.css (.footer__*)
+   This file handles: logo, tagline, socials, bottom bar.
+   ============================================================ */
+
+/* ── Logo in footer ─────────────────────────────────── */
+
+.footerLogo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 1rem;
+  color: var(--color-accent)
+}
+
+.logoIcon {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+/* ── Tagline ────────────────────────────────────────── */
+
+.tagline {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  max-width: 240px;
+}
+
+/* ── Social icons ───────────────────────────────────── */
+
+.socials {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
+}
+
+.socialIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  transition:
+    color        var(--duration-fast),
+    border-color var(--duration-fast),
+    background   var(--duration-fast);
+}
+
+.socialIcon:hover {
+  color: var(--color-accent);
+  border-color: var(--color-border-strong);
+  background: rgba(0, 255, 136, 0.05);
+  border: 1px solid var(--color-border-strong);
+}
+
+/* ── Bottom bar ─────────────────────────────────────── */
+
+.bottomBar {
+  border-top: 1px solid var(--color-border-subtle);
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+}
+
+.bottomBarInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.bottomText {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.bottomLink {
+  color: var(--color-accent-text);
+  transition: color var(--duration-fast);
+}
+
+.bottomLink:hover {
+  color: var(--color-accent);
+}
+
+.legalLinks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.legalLink {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  transition: color var(--duration-fast);
+}
+
+.legalLink:hover {
+  color: var(--color-text-secondary);
+}
+
+.dot {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .bottomBarInner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .tagline {
+    max-width: 100%;
+  }
+}

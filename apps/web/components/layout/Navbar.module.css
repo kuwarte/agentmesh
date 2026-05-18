@@ -1,0 +1,202 @@
+/* ============================================================
+   NAVBAR — scoped module styles
+   Base structural styles live in globals.css (.nav, .nav__*)
+   This file handles: scroll state, logo icon, wallet button,
+   hamburger animation, mobile overlay.
+   ============================================================ */
+
+/* ── Header scroll state ────────────────────────────── */
+
+.header {
+  transition:
+    border-color  var(--duration-base) var(--ease-in-out),
+    box-shadow    var(--duration-base) var(--ease-in-out),
+    background    var(--duration-base) var(--ease-in-out);
+}
+
+.scrolled {
+  border-bottom-color: var(--color-border-default);
+  box-shadow: 0 1px 40px rgba(0, 0, 0, 0.6);
+  background: rgba(8, 12, 10, 0.96);
+}
+
+/* ── Logo ───────────────────────────────────────────── */
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-family: var(--font-display);
+  color: var(--color-accent);
+}
+
+.logoIcon {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-accent);
+  opacity: 0.7;
+  margin-right: 2px;
+}
+
+/* ── Desktop links ──────────────────────────────────── */
+
+.desktopLinks {
+  /* Shown on desktop via global .nav__links; hidden at ≤768px via globals */
+}
+
+/* ── Right actions cluster ──────────────────────────── */
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ── Wallet button ──────────────────────────────────── */
+
+.walletBtn {
+  font-size: 0.75rem;
+  padding: 0.55em 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: var(--font-body);
+  color: var(--color-accent);
+  border-color: var(--color-border-strong);
+  background: rgba(0, 255, 136, 0.05);
+  border-width: 0.2em;
+}
+
+.walletBtn:hover {
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  background: rgba(0, 255, 136, 0.05);
+}
+
+/* ── Hamburger ──────────────────────────────────────── */
+
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  transition: border-color var(--duration-fast);
+}
+
+.hamburger:hover {
+  border-color: var(--color-border-default);
+}
+
+.bar {
+  display: block;
+  width: 100%;
+  height: 1.5px;
+  background: var(--color-text-secondary);
+  border-radius: var(--radius-pill);
+  transition:
+    transform  var(--duration-base) var(--ease-expo),
+    opacity    var(--duration-base) var(--ease-expo);
+  transform-origin: center;
+}
+
+/* Animate to X */
+.barTopOpen { transform: translateY(6.5px) rotate(45deg);  }
+.barMidOpen { opacity: 0; transform: scaleX(0);            }
+.barBotOpen { transform: translateY(-6.5px) rotate(-45deg);}
+
+/* ── Mobile menu overlay ────────────────────────────── */
+
+.mobileMenu {
+  position: fixed;
+  inset: 0;
+  top: var(--nav-height);
+  background: rgba(8, 12, 10, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 99;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-8) var(--container-padding);
+
+  /* Hidden by default */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition:
+    opacity   var(--duration-base) var(--ease-expo),
+    transform var(--duration-base) var(--ease-expo);
+}
+
+.mobileMenuOpen {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.mobileLinks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-12);
+}
+
+.mobileLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: -0.02em;
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: color var(--duration-fast);
+}
+
+.mobileLink:hover {
+  color: var(--color-text-primary);
+}
+
+.mobileLink:hover .mobileLinkArrow {
+  color: var(--color-accent);
+  transform: translateX(4px);
+}
+
+.mobileLinkArrow {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  transition:
+    color     var(--duration-fast),
+    transform var(--duration-base) var(--ease-expo);
+}
+
+.mobileCta {
+  margin-top: auto;
+}
+
+.mobileWalletBtn {
+  width: 100%;
+  justify-content: center;
+  font-size: 0.85rem;
+  padding: 0.9em 1.5em;
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
+  }
+
+  .walletBtn {
+    display: none;
+  }
+}
