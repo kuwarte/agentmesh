@@ -4,7 +4,7 @@ import Hero from '@/components/sections/Hero'
 // import Problems from '@/components/sections/Problems'
 // import TechnicalApproach from '@/components/sections/TechnicalApproach'
 // import Protocol from '@/components/sections/Protocol'
-// import UnitEconomics from '@/components/sections/UnitEconomics'
+import UnitEconomics from '@/components/sections/UnitEconomics'
 import CTA from '@/components/sections/CTA'
 
 export default function HomePage() {
@@ -13,10 +13,10 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        {/* {/* <Problems />
+        {/* {/* {/* <Problems />
         <TechnicalApproach />
-        <Protocol />
-        <UnitEconomics /> */}
+        <Protocol /> */}
+        <UnitEconomics />
         <CTA />
       </main>
       <Footer />

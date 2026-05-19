@@ -1,0 +1,144 @@
+/* ============================================================
+   UNIT ECONOMICS SECTION
+   ============================================================ */
+
+.section {
+  background: var(--color-bg-base);
+  padding-block: var(--space-20) var(--space-24);
+  position: relative;
+  z-index: 1;
+}
+
+.inner {
+  padding-inline: var(--container-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+/* ── Header ─────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* "—— Unit Economics" label row */
+.label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.labelLine {
+  display: block;
+  width: 32px;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.labelText {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+/* ── Stats row ──────────────────────────────────────── */
+
+.stats {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+/* Each stat + its left divider wrapped together */
+.stat {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* Vertical pipe divider between stats */
+.divider {
+  width: 1px;
+  background: var(--color-border-subtle);
+  flex-shrink: 0;
+  align-self: stretch;
+  margin-inline: var(--space-8);
+}
+
+.statInner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Big green number */
+.value {
+  font-family: var(--font-body);
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 800;
+  color: var(--color-accent);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* Primary label */
+.label2 {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin: 0;
+  margin-top: var(--space-3);
+}
+
+/* Secondary sub-label */
+.sub {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--color-text-faint);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .stats {
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .divider {
+    width: 100%;
+    height: 1px;
+    margin-inline: 0;
+    margin-block: 0;
+    align-self: auto;
+  }
+
+  .stat {
+    flex-direction: column;
+  }
+}
