@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { blockchainService } from "./services/blockchain.service";
-import apiRoutes      from "./routes/api.routes";
+import apiRoutes, { syncWithRegistry } from "./routes/api.routes";
 import paymentRoutes  from "./routes/payment.routes";
 import registryRoutes from "./routes/registry.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
@@ -31,7 +31,7 @@ app.use("/provider",  providerRoutes);
 app.get("/", (_req: Request, res: Response) => {
 	res.json({
 		name:    "AgentMesh Gateway",
-		version: "0.2.0",
+		version: "0.1.0",
 		status:  "running",
 		chain: {
 			network:   process.env.CHAIN_NAME || "morph_hoodi",
@@ -45,9 +45,11 @@ app.get("/", (_req: Request, res: Response) => {
 			eth:        "/api/v1/eth",
 			sol:        "/api/v1/sol",
 			gas:        "/api/v1/gas",
+			proxy:      "/api/v1/call/:apiId",
 			// Registry
 			registry:   "/registry/apis",
 			register:   "POST /registry/register",
+			updateApi:  "PUT /registry/api/:id",
 			// Payment
 			nonce:      "/payment/nonce",
 			verify:     "POST /payment/verify",
@@ -67,6 +69,9 @@ async function bootstrap() {
 	try {
 		console.log("[server] Initializing blockchain service...");
 		await blockchainService.init();
+
+		// Sync built-in endpoint catalog with on-chain registry prices
+		await syncWithRegistry();
 
 		app.listen(PORT, () => {
 			console.log(`\nAgentMesh Gateway v0.2.0 — http://localhost:${PORT}`);
