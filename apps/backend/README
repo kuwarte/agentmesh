@@ -1,88 +1,148 @@
 BACKEND
-[x] Provider API Server
-[x] x402 Middleware
-[x] Blockchain Service Layer
-[x] Registry Gateway API
 -------------------------------------------------------------------------------------
-LOG
-* Created express boilerplate server
-    - mock API routes
+x402 Payment Gateway for Autonomous AI Agents
+Network: Morph Hoodi Testnet (Chain ID: 2910)
+-------------------------------------------------------------------------------------
+WHAT IT DOES
+- Implements the x402 payment-as-authentication protocol
+- AI agents discover APIs on-chain, pay per call, receive data — zero human approval
+- Gateway mediates on-chain settlement via X402Facilitator.sol
+- Providers register APIs on-chain via APIRegistry.sol
+- Every payment is signed, verified, and settled on Morph L2
+-------------------------------------------------------------------------------------
+STATUS
+[/] x402 middleware (HTTP 402 challenge / X-Payment header)
+[/] Signature verification (ECDSA off-chain)
+[/] On-chain settlement via X402Facilitator.settle(payer, ...)
+[/] Dual-layer nonce protection (in-memory + on-chain)
+[/] APIRegistry integration (read + write)
+[/] Startup registry sync (live on-chain prices)
+[/] Generic proxy route (any registered API callable)
+[/] Payment ledger (in-memory, per-call history)
+[/] Marketplace catalog endpoint
+[/] Dashboard endpoints (wallet spend history)
+[/] Provider portal endpoints (earnings, call history)
+[/] Single X-Payment header (base64 JSON)
+[/] chainId in 402 response
+[/] Demo agent script (autonomous multi-call simulation)
 -------------------------------------------------------------------------------------
 GETTING STARTED
-- after cloning this repository, run the following steps:
-    1. Move into backend folder
+    1. Build contracts (required before starting backend)
+            cd packages/contracts
+            forge build
+    2. Deploy contracts to Morph Hoodi (if not already deployed)
+            see packages/contracts/GETTING_STARTED
+    3. Configure environment
+            cp apps/backend/.env.example apps/backend/.env
+            # Fill in all values — see ENVIRONMENT section below
+    4. Move into backend folder
             cd apps/backend
-    2. Install Node.js dependencies (IMPORTANT)
+    5. Install dependencies
             pnpm install
-    3. Run server
+    6. Start server
             pnpm dev
-    4. Test APIs with Curl/Postman
-            server_runs_at: http://localhost:3001
+            # Server runs at http://localhost:3001
+    7. Run demo agent (optional)
+            node scripts/agent.mjs
+-------------------------------------------------------------------------------------
+ENVIRONMENT
+    RPC_URL                   Morph Hoodi RPC (https://rpc-hoodi.morphl2.io)
+    CHAIN_NAME                morph_hoodi
+    GATEWAY_PRIVATE_KEY       Server wallet private key (pays gas for settle())
+    API_REGISTRY_ADDRESS      Deployed APIRegistry.sol address
+    X402_FACILITATOR_ADDRESS  Deployed X402Facilitator.sol address
+    USDC_ADDRESS              Deployed MockUSDC address
+    PROVIDER_ADDRESS          Wallet that receives 99% of API payments
+    TREASURY_ADDRESS          Wallet that receives 1% platform fee
 -------------------------------------------------------------------------------------
 REQUIREMENTS
-- Node.js 18+
-- pnpm package manager
+    - Node.js 18+
+    - pnpm
+    - Foundry (forge, cast) — for contract build and deployment
+    - Morph Hoodi ETH — for gas (faucet: https://morphl2.io/faucet)
 -------------------------------------------------------------------------------------
 DEPENDENCIES
-- express => HTTP server
-- cors => different origin API access
-- dotenv => env config
-- ethers => blockchain interaction
--------------------------------------------------------------------------------------
-DEV DEPENDENCIES
--typescript
-- ts-node-dev
-- @types/node
-- @types/express
-- @types/cors
+    express    HTTP server
+    cors       Cross-origin access
+    dotenv     Environment config
+    ethers     Blockchain interaction (v6)
 -------------------------------------------------------------------------------------
 API ENDPOINTS
-    GET /api/btc
-        - ret mock btc data
+  PAID APIs (x402 protected — requires X-Payment header)
+    GET  /api/v1/catalog          List all available APIs with on-chain prices
+    GET  /api/v1/btc              BTC/USD price  ($0.001 USDC)
+    GET  /api/v1/eth              ETH/USD price  ($0.001 USDC)
+    GET  /api/v1/sol              SOL/USD price  ($0.0005 USDC)
+    GET  /api/v1/gas              Ethereum gas tracker  ($0.0005 USDC)
+    GET  /api/v1/call/:apiId      Proxy any on-chain registered API (dynamic price)
+  PAYMENT
+    GET  /payment/nonce           Generate fresh nonce + deadline (5 min expiry)
+    POST /payment/verify          Pre-flight signature check (no nonce consumed)
+    GET  /payment/balance/:addr   USDC balance for any wallet
+    GET  /payment/status          Payment layer health check
+  REGISTRY (on-chain APIRegistry.sol)
+    GET  /registry/apis           List all registered APIs (marketplace)
+    GET  /registry/api/:id        Single API detail + recent activity
+    GET  /registry/provider/:addr All APIs owned by a provider
+    GET  /registry/stats          Total API count + chain status
+    POST /registry/register       Register a new API on-chain
+    PUT  /registry/api/:id        Update price or active status
+  DASHBOARD (wallet spend view)
+    GET  /dashboard/:address              Overview: balance, spend, call count
+    GET  /dashboard/:address/history      Paginated call history
+    GET  /dashboard/:address/spend        Spend breakdown per API
+  PROVIDER PORTAL (earnings view)
+    GET  /provider/:address               Overview: earnings, APIs, call stats
+    GET  /provider/:address/earnings      Earnings breakdown per API
+    GET  /provider/:address/calls         Paginated incoming call history
 -------------------------------------------------------------------------------------
-SMART CONTRACT CONNECTION
-    - the backend will connect to:
-        1. APIRegistry.sol
-            PURPOSE
-            - store registered APIs
-            - retrieve API endpoint & pricing
-            - allow discovery for agents & frontend
-            TODO:
-            * backend will read registry via ethers.js
-            * replace local mock registry
-        2. X402Facilitator.sol
-            PURPOSE
-            - verify payments
-            - enforce nonce & deadline rules
-            - execute USDC transfers
-            - unlock API access after settlement
-            TODO:
-            - backend calls settle() function
-            - validates payment before returning API response
+X402 PAYMENT FLOW
+    Agent                    Gateway                  Morph Hoodi
+      |                         |                          |
+      |-- GET /api/v1/btc ----->|                          |
+      |<-- 402 Payment Required-|                          |
+      |    (amount, provider,   |                          |
+      |     facilitator,        |                          |
+      |     chainId, nonce URL) |                          |
+      |                         |                          |
+      |-- GET /payment/nonce -->|                          |
+      |<-- { nonce, deadline } -|                          |
+      |                         |                          |
+      | [agent signs off-chain] |                          |
+      |                         |                          |
+      |-- GET /api/v1/btc ----->|                          |
+      |   X-Payment: base64(    |                          |
+      |     payer, provider,    |                          |
+      |     amount, nonce,      |-- verifyPayment()        |
+      |     deadline, sig)      |   (off-chain ECDSA)      |
+      |                         |                          |
+      |<-- 200 OK + data -------|                          |
+      |                         |-- facilitator.settle() ->|
+      |                         |   (payer, provider, sig) |
+      |                         |                          |-- verify sig == payer
+      |                         |                          |-- transferFrom(payer->provider)
+      |                         |                          |-- emit PaymentSettled
+      |                         |<-- txHash ---------------|
+      |                         |   ledger.record()        |
+    Key properties:
+    - Agent signs once, gateway settles on-chain
+    - Nonce consumed in-memory before response, permanently on-chain after settle
+    - Settlement is async — agent does not wait for on-chain confirmation
+    - Every settled payment is recorded in the ledger for dashboard queries
 -------------------------------------------------------------------------------------
-TODO
-1. Backend Core:
-    [] Implement API registry reader (ethers.js)
-    [] Add x402 middleware layer
-    [] Implement HTTP 402 response flow
-    [] Add request authentication headers
-    [] Add API keyless access model (payment-based auth)
-2. Blockchain Integration:
-    [] Connect to APIRegistry.sol (read APIs)
-    [] Connect to X402Facilitator.sol (settle payments)
-    [] Add contract address config via env
-    [] Add RPC support (Anvil / Morph testnet)
-3. Security / Reliability:
-    [] Add nonce tracking (off-chain cache)
-    [] Validate payment deadlines 
-    [] Add request replay protection (middleware layer)
-    [] Add rate limiting (optional)
-4. Frontend Connection:
-    [] Expose registry API endpoint
-    [] Provide API metadata for UI
-    [] Enable provider registration flow
-5. Agent Flow:
-    [] Implement x402 client simulation script
-    [] Build request retry logic after payment
-    [] Add signed transaction flow (EIP-3009)
-
+SCRIPTS
+    node scripts/pay.mjs      Single end-to-end payment test (BTC endpoint)
+    node scripts/agent.mjs    Full demo agent
+-------------------------------------------------------------------------------------
+SMART CONTRACTS
+    APIRegistry.sol
+        - Permissionless API registration
+        - On-chain pricing (pricePerCall in USDC, 6 decimals)
+        - Provider ownership and update rights
+        - Enumerable listings for agent discovery
+    X402Facilitator.sol
+        - Gateway-mediated settlement
+        - ECDSA signature verification against declared payer
+        - Nonce-based replay protection
+        - 99% to provider / 1% to treasury fee split
+        - Deadline enforcement
