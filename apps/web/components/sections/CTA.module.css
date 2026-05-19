@@ -1,0 +1,137 @@
+/* ============================================================
+   CTA SECTION
+   Centered text block with a radial green glow behind it.
+   Matches the reference: dark bg, glow, headline, sub, button.
+   ============================================================ */
+
+.cta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 480px;
+  padding-block: var(--space-24);
+  background: var(--color-bg-base);
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* ── Radial glow ────────────────────────────────────── */
+/*
+  The green radial bloom centered behind the headline.
+  Matches the reference exactly — soft, unfocused, deep.
+*/
+
+.glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 700px;
+  height: 500px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(20, 255, 110, 0.13) 0%,
+    rgba(10, 200, 80, 0.07) 35%,
+    rgba(0, 140, 55, 0.02) 60%,
+    transparent 75%
+  );
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(4px);
+}
+
+/* ── Content ────────────────────────────────────────── */
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-6);
+  max-width: 600px;
+  width: 100%;
+  padding-inline: var(--space-8);
+}
+
+/* ── Headline ───────────────────────────────────────── */
+
+.headline {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.05em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.accent {
+  color: var(--color-accent);
+  display: block;
+}
+
+/* ── Subtitle ───────────────────────────────────────── */
+
+.sub {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.75;
+  max-width: 400px;
+}
+
+/* ── Button ─────────────────────────────────────────── */
+/*
+  Outlined dark button — matches the reference exactly:
+  transparent bg, white border at low opacity, mono caps.
+*/
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0.6em 1.2em;
+
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+
+  color: rgba(255, 255, 255, 0.85);
+
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 500;
+
+  cursor: pointer;
+  transition:
+    background var(--duration-base) var(--ease-in-out),
+    border-color var(--duration-base) var(--ease-in-out),
+    box-shadow var(--duration-base) var(--ease-in-out),
+    border-width var(--duration-base) var(--ease-in-out),
+    color var(--duration-base) var(--ease-in-out);
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.199);
+  opacity: 0.92;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .glow {
+    width: 100vw;
+    height: 360px;
+  }
+
+  .headline {
+    font-size: clamp(1.75rem, 6vw, 2.5rem);
+  }
+}

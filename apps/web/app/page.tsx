@@ -5,7 +5,7 @@ import Hero from '@/components/sections/Hero'
 // import TechnicalApproach from '@/components/sections/TechnicalApproach'
 // import Protocol from '@/components/sections/Protocol'
 // import UnitEconomics from '@/components/sections/UnitEconomics'
-// import CTA from '@/components/sections/CTA'
+import CTA from '@/components/sections/CTA'
 
 export default function HomePage() {
   return (
@@ -13,11 +13,11 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        {/* <Problems />
+        {/* {/* <Problems />
         <TechnicalApproach />
         <Protocol />
-        <UnitEconomics />
-        <CTA /> */}
+        <UnitEconomics /> */}
+        <CTA />
       </main>
       <Footer />
     </>
