@@ -261,43 +261,53 @@ class BlockchainService {
 
 	// Replay PaymentSettled events from X402Facilitator to rebuild the ledger
 	// after a server restart. The chain is the source of truth.
+	// Paginates in 5000-block chunks to respect Morph Hoodi RPC limits.
 	async replayLedgerFromChain(ledger: import("./ledger.service").LedgerService): Promise<void> {
 		try {
 			console.log("[ledger] Replaying PaymentSettled events from chain...");
 
-			const filter  = facilitator.filters.PaymentSettled();
-			const events  = await facilitator.queryFilter(filter, 0, "latest");
+			const CHUNK      = 5000;
+			const latest     = await provider.getBlockNumber();
+			const EXPLORER   = "https://explorer-hoodi.morphl2.io/tx";
 
-			if (!events.length) {
+			// Build a name lookup from the registry for provider address → API name
+			const allAPIs = await this.getAllAPIs();
+
+			let allEvents: ethers.EventLog[] = [];
+
+			// Paginate from block 0 to latest in 5000-block chunks
+			for (let from = 0; from <= latest; from += CHUNK) {
+				const to = Math.min(from + CHUNK - 1, latest);
+				try {
+					const filter = facilitator.filters.PaymentSettled();
+					const chunk  = await facilitator.queryFilter(filter, from, to);
+					allEvents    = allEvents.concat(chunk as ethers.EventLog[]);
+				} catch {
+					// Skip chunks that fail — non-fatal
+				}
+			}
+
+			if (!allEvents.length) {
 				console.log("[ledger] No past events found");
 				return;
 			}
 
-			// Build a name lookup from the registry for apiId → name
-			const allAPIs  = await this.getAllAPIs();
-			const nameMap  = new Map(allAPIs.map((a) => [a.apiId.toLowerCase(), a.name]));
-
-			const EXPLORER = "https://explorer-hoodi.morphl2.io/tx";
-
-			for (const event of events) {
-				const e = event as ethers.EventLog;
+			for (const e of allEvents) {
 				if (!e.args) continue;
 
-				const payer    = e.args[0] as string;
-				const prov     = e.args[1] as string;
-				const amount   = e.args[2] as bigint;
-				const fee      = e.args[3] as bigint;
-				const nonce    = e.args[4] as string;
-				const txHash   = e.transactionHash;
+				const payer  = e.args[0] as string;
+				const prov   = e.args[1] as string;
+				const amount = e.args[2] as bigint;
+				const fee    = e.args[3] as bigint;
+				const nonce  = e.args[4] as string;
+				const txHash = e.transactionHash;
 
-				// Try to match apiId from registry by provider address
 				const matchedAPI = allAPIs.find(
 					(a) => a.provider.toLowerCase() === prov.toLowerCase()
 				);
 				const apiId   = matchedAPI?.apiId ?? "";
 				const apiName = matchedAPI?.name ?? "Unknown API";
 
-				// Get block timestamp for accurate time
 				const block     = await provider.getBlock(e.blockNumber);
 				const timestamp = block ? block.timestamp * 1000 : Date.now();
 
@@ -316,7 +326,7 @@ class BlockchainService {
 				});
 			}
 
-			console.log(`[ledger] Replayed ${events.length} past payment(s) from chain`);
+			console.log(`[ledger] Replayed ${allEvents.length} past payment(s) from chain`);
 		} catch (err: any) {
 			console.warn("[ledger] Replay failed (non-fatal):", err.message);
 		}
