@@ -259,6 +259,69 @@ class BlockchainService {
 		}
 	}
 
+	// Replay PaymentSettled events from X402Facilitator to rebuild the ledger
+	// after a server restart. The chain is the source of truth.
+	async replayLedgerFromChain(ledger: import("./ledger.service").LedgerService): Promise<void> {
+		try {
+			console.log("[ledger] Replaying PaymentSettled events from chain...");
+
+			const filter  = facilitator.filters.PaymentSettled();
+			const events  = await facilitator.queryFilter(filter, 0, "latest");
+
+			if (!events.length) {
+				console.log("[ledger] No past events found");
+				return;
+			}
+
+			// Build a name lookup from the registry for apiId → name
+			const allAPIs  = await this.getAllAPIs();
+			const nameMap  = new Map(allAPIs.map((a) => [a.apiId.toLowerCase(), a.name]));
+
+			const EXPLORER = "https://explorer-hoodi.morphl2.io/tx";
+
+			for (const event of events) {
+				const e = event as ethers.EventLog;
+				if (!e.args) continue;
+
+				const payer    = e.args[0] as string;
+				const prov     = e.args[1] as string;
+				const amount   = e.args[2] as bigint;
+				const fee      = e.args[3] as bigint;
+				const nonce    = e.args[4] as string;
+				const txHash   = e.transactionHash;
+
+				// Try to match apiId from registry by provider address
+				const matchedAPI = allAPIs.find(
+					(a) => a.provider.toLowerCase() === prov.toLowerCase()
+				);
+				const apiId   = matchedAPI?.apiId ?? "";
+				const apiName = matchedAPI?.name ?? "Unknown API";
+
+				// Get block timestamp for accurate time
+				const block     = await provider.getBlock(e.blockNumber);
+				const timestamp = block ? block.timestamp * 1000 : Date.now();
+
+				ledger.record({
+					txHash,
+					apiId,
+					apiName,
+					payer,
+					provider:    prov,
+					amount:      amount.toString(),
+					amountUsd:   (Number(amount) / 1_000_000).toFixed(6),
+					fee:         fee.toString(),
+					nonce,
+					timestamp,
+					explorerUrl: `${EXPLORER}/${txHash}`,
+				});
+			}
+
+			console.log(`[ledger] Replayed ${events.length} past payment(s) from chain`);
+		} catch (err: any) {
+			console.warn("[ledger] Replay failed (non-fatal):", err.message);
+		}
+	}
+
 	// USDC bal
 	async getUSDCBalance(address: string) {
 		try {

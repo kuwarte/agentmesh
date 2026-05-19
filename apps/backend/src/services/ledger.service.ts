@@ -24,7 +24,7 @@ export interface LedgerEntry {
 	explorerUrl: string;
 }
 
-class LedgerService {
+export class LedgerService {
 	private entries: LedgerEntry[] = [];
 
 	record(entry: LedgerEntry) {
