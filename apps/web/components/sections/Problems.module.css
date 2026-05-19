@@ -1,0 +1,196 @@
+/* ============================================================
+   PROBLEMS SECTION
+   ============================================================ */
+
+.section {
+  background: var(--color-bg-base);
+  padding-block: var(--space-24);
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-4);
+  padding-inline: var(--container-padding);
+  margin-bottom: var(--space-20);
+}
+
+.badge {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--color-text-primary);
+  max-width: 750px;
+  margin: 0;
+}
+
+.sub {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  line-height: 1.8;
+  color: var(--color-text-muted);
+  max-width: 600px;
+  margin: 0;
+}
+
+/* ── Track — zigzag layout container ───────────────── */
+
+.track {
+  position: relative;
+  max-width: 900px;
+  margin-inline: auto;
+  padding-inline: var(--container-padding);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Vertical spine ─────────────────────────────────── */
+
+.spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--color-border-subtle) 8%,
+    var(--color-border-subtle) 92%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Canvas — comet dot + trail ─────────────────────── */
+/*
+  Overlays the full track area. Drawn via rAF in TSX.
+  Sits above spine (z-index 2) but below card text (z-index 3).
+*/
+
+.canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Row ────────────────────────────────────────────── */
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  min-height: 280px;
+  padding-block: var(--space-12);
+  z-index: 3;
+}
+
+/* ── Card ───────────────────────────────────────────── */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 320px;
+}
+
+.rowRight .card {
+  grid-column: 2;
+  padding-left: var(--space-12);
+}
+
+.rowLeft .card {
+  grid-column: 1;
+  grid-row: 1;
+  padding-right: var(--space-12);
+  text-align: left;
+}
+
+.cardNum {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-text-faint);
+  letter-spacing: 0.08em;
+}
+
+.cardImg {
+  width: 100%;
+  max-width: 200px;
+  aspect-ratio: 4 / 3;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.cardTitle {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: 0;
+  margin-top: var(--space-2);
+}
+
+.cardBody {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  line-height: 1.8;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .track {
+    padding-inline: var(--space-6);
+  }
+
+  .row {
+    grid-template-columns: 1fr;
+    padding-left: var(--space-8);
+    min-height: auto;
+    padding-block: var(--space-8);
+  }
+
+  .spine {
+    left: 0;
+  }
+
+  .rowRight .card,
+  .rowLeft .card {
+    grid-column: 1;
+    grid-row: 1;
+    padding-left: var(--space-8);
+    padding-right: 0;
+    max-width: 100%;
+  }
+}
