@@ -128,37 +128,27 @@ Run this once per agent wallet:
 
 STEP 10 — Make a paid API call
 --------------------------------
-The x402 flow requires the agent to:
-  1. Get a nonce from the gateway
-  2. Sign the payment message
-  3. Send the signed headers with the API request
+A test script handles the full flow automatically.
+Make sure the backend is running (step 7) and .env is filled in (step 5).
 
-Get a nonce:
+  node apps/backend/scripts/pay.mjs
+
+The script does everything in order:
+  1. Fetches a fresh nonce + deadline from GET /payment/nonce
+  2. Signs the payment message with GATEWAY_PRIVATE_KEY from .env
+  3. Calls POST /payment/verify as a pre-flight check
+  4. Calls GET /api/v1/btc with all x-payment-* headers
+  5. Prints the HTTP status and response
+
+On success you will see the BTC price in the response and a message that
+settlement is processing on-chain via X402Facilitator.settle().
+
+If you want to do it manually with curl instead:
+
+  # 1. get nonce
   curl http://localhost:3001/payment/nonce
 
-Sign the payment (Node.js snippet):
-
-  const { ethers } = require("ethers");
-
-  const facilitatorAddress = "<X402FACILITATOR_ADDRESS>";
-  const payerAddress       = "<AGENT_ADDRESS>";
-  const providerAddress    = "<PROVIDER_ADDRESS>";
-  const amount             = 1000n;          // 0.001 USDC
-  const nonce              = "<NONCE_FROM_STEP_ABOVE>";
-  const deadline           = <DEADLINE_FROM_STEP_ABOVE>;
-
-  const encoded = ethers.solidityPacked(
-    ["address", "address", "address", "uint256", "bytes32", "uint256"],
-    [facilitatorAddress, payerAddress, providerAddress, amount, nonce, deadline]
-  );
-  const hash = ethers.keccak256(encoded);
-  const wallet = new ethers.Wallet("<AGENT_PRIVATE_KEY>");
-  const signature = await wallet.signMessage(ethers.getBytes(hash));
-
-  console.log("signature:", signature);
-
-Call the paid endpoint:
-
+  # 2. sign with the script, then call the endpoint:
   curl http://localhost:3001/api/v1/btc \
     -H "x-payment-payer: <AGENT_ADDRESS>" \
     -H "x-payment-provider: <PROVIDER_ADDRESS>" \
@@ -166,9 +156,6 @@ Call the paid endpoint:
     -H "x-payment-nonce: <NONCE>" \
     -H "x-payment-deadline: <DEADLINE>" \
     -H "x-payment-signature: <SIGNATURE>"
-
-On success the gateway returns the BTC price and settles the USDC payment
-on-chain in the background via X402Facilitator.settle().
 
 
 Run contract tests
