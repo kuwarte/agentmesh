@@ -38,19 +38,30 @@ router.get("/nonce", (_req: Request, res: Response) => {
 // Pre-flight signature verification — call this before hitting a paid endpoint
 // to confirm the signature is valid without spending a nonce.
 //
-// Body: { payer, provider, amount, nonce, deadline, signature }
-//   payer     — agent wallet address that signed
-//   provider  — provider wallet address
-//   amount    — USDC raw units (6 decimals), e.g. "1000" = $0.001
-//   nonce     — 0x-prefixed 32-byte hex from GET /payment/nonce
-//   deadline  — unix timestamp from GET /payment/nonce
-//   signature — ECDSA signature over (facilitator, payer, provider, amount, nonce, deadline)
+// Accepts two formats:
+//   1. JSON body: { payer, provider, amount, nonce, deadline, signature }
+//   2. X-Payment header: base64-encoded JSON with same fields
 //
 // Response: { success, valid, reason? }
 // ---------------------------------------------------------------------------
 router.post("/verify", async (req: Request, res: Response) => {
 	try {
-		const { payer, provider, amount, nonce, deadline, signature } = req.body;
+		let payer: string, provider: string, amount: string,
+			nonce: string, deadline: string | number, signature: string;
+
+		// Accept X-Payment header format
+		const xPayment = req.headers["x-payment"] as string;
+		if (xPayment) {
+			try {
+				const decoded = Buffer.from(xPayment, "base64").toString("utf8");
+				const parsed  = JSON.parse(decoded);
+				({ payer, provider, amount, nonce, deadline, signature } = parsed);
+			} catch {
+				return res.status(400).json({ success: false, error: "Malformed X-Payment header" });
+			}
+		} else {
+			({ payer, provider, amount, nonce, deadline, signature } = req.body);
+		}
 
 		if (!payer || !provider || !amount || !nonce || !deadline || !signature) {
 			return res.status(400).json({

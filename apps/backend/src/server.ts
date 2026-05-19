@@ -55,7 +55,7 @@ app.get("/", (_req: Request, res: Response) => {
 			verify:     "POST /payment/verify",
 			balance:    "/payment/balance/:address",
 			status:     "/payment/status",
-			// Frontend pages
+			// Frontend pages 
 			marketplace: "/registry/apis",
 			dashboard:   "/dashboard/:address",
 			provider:    "/provider/:address",

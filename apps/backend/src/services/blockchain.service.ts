@@ -44,11 +44,13 @@ export interface PaymentPayload {
 // service
 class BlockchainService {
 	private ready = false;
+	private chainId: number = 2910; // default to Morph Hoodi
 
 	async init() {
 		try {
 			const network = await provider.getNetwork();
-			console.log(`[blockchain] connected chainId=${network.chainId}`);
+			this.chainId = Number(network.chainId);
+			console.log(`[blockchain] connected chainId=${this.chainId}`);
 			this.ready = true;
 		} catch (err) {
 			console.warn("[blockchain] RPC not available");
@@ -58,6 +60,10 @@ class BlockchainService {
 
 	isReady() {
 		return this.ready;
+	}
+
+	getChainId(): number {
+		return this.chainId;
 	}
 
 	// Verify the agent's payment signature off-chain before serving the response.

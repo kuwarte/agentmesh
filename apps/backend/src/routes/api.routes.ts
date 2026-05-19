@@ -3,10 +3,10 @@
  *
  * Two types of paid endpoints:
  *
- * 1. Built-in endpoints (/btc, /eth, /sol, /gas)
+ * Built-in endpoints (/btc, /eth, /sol, /gas)
  *    Hardcoded response logic, prices synced from on-chain registry at startup.
  *
- * 2. Generic proxy route (/call/:apiId)
+ * Generic proxy route (/call/:apiId)
  *    Looks up any registered API by ID from the on-chain registry,
  *    charges its on-chain price, and proxies the request to the
  *    provider's registered endpoint URL. This is what makes the
