@@ -1,3 +1,15 @@
+/**
+ * nonce.service.ts
+ *
+ * In-memory nonce store for replay attack prevention.
+ * Acts as the first line of defense before on-chain settlement —
+ * rejects duplicate nonces instantly without an RPC call.
+ *
+ * TTL: 24 hours (nonces expire after the on-chain deadline window).
+ * Note: resets on server restart. The X402Facilitator contract's
+ * on-chain usedNonces mapping is the permanent source of truth.
+ */
+
 type NonceEntry = {
 	usedAt: number;
 	provider: string;

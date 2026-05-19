@@ -2,11 +2,24 @@ import { ethers } from "ethers";
 import APIRegistry from "../../../../packages/contracts/out/APIRegistry.sol/APIRegistry.json";
 import X402Facilitator from "../../../../packages/contracts/out/X402Facilitator.sol/X402Facilitator.json";
 
+/**
+ * blockchain.service.ts
+ *
+ * Single interface to all on-chain interactions:
+ *   - Signature verification (off-chain, before serving response)
+ *   - Payment settlement via X402Facilitator.settle(payer, ...)
+ *   - APIRegistry read/write (getAllAPIs, getAPI, registerAPI, updateAPI)
+ *   - USDC balance queries
+ *
+ * The gateway signer (GATEWAY_PRIVATE_KEY) is used only for write operations
+ * (registerAPI, updateAPI, settlePayment). Read operations use the provider directly.
+ */
+
 const RPC_URL = process.env.RPC_URL || "http://127.0.0.1:8545";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
-// gateway signer !!ONLY used for reading & optional admin calls
+// gateway signer — used for settlePayment, registerAPI, updateAPI
 const signer = new ethers.Wallet(process.env.GATEWAY_PRIVATE_KEY!, provider);
 
 // contracts
@@ -47,11 +60,11 @@ class BlockchainService {
 		return this.ready;
 	}
 
-	// signature verification
-	// Message hash must match exactly what X402Facilitator.settle() reconstructs:
-	// keccak256(abi.encodePacked(address(this), msg.sender, provider, amount, nonce, deadline))
-	// where msg.sender is the payer (agent wallet).
-	verifyPayment(payload: PaymentPayload & { payer: string }) {
+	// Verify the agent's payment signature off-chain before serving the response.
+	// Must reconstruct the exact same message hash the contract uses in settle():
+	//   keccak256(abi.encodePacked(facilitator, payer, provider, amount, nonce, deadline))
+	// The signature is verified against `payer`, not the gateway (msg.sender).
+	verifyPayment(payload: PaymentPayload) {
 		try {
 			const facilitatorAddress = process.env.X402_FACILITATOR_ADDRESS!;
 

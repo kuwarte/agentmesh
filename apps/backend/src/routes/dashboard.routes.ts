@@ -11,7 +11,6 @@
 import { Router, Request, Response } from "express";
 import { blockchainService } from "../services/blockchain.service";
 import { ledgerService } from "../services/ledger.service";
-import { nonceService } from "../services/nonce.service";
 
 const router = Router();
 const param = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);

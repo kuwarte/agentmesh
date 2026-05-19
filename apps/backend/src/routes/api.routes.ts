@@ -122,7 +122,7 @@ router.get("/catalog", async (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // GET /api/v1/btc
 // ---------------------------------------------------------------------------
-router.get("/btc", async (req: Request, res: Response, next) => {
+router.get("/btc", async (req: Request, res: Response) => {
 	const price = await resolvePrice("btc");
 	requirePayment(price, PROVIDER, ENDPOINTS.btc.apiId, "BTC Price")(req, res, async () => {
 		res.json({
@@ -134,9 +134,8 @@ router.get("/btc", async (req: Request, res: Response, next) => {
 				timestamp: Date.now(),
 			},
 			payment: {
-				nonce:      req.paymentPayload?.nonce,
-				provider:   req.paymentPayload?.provider,
-				// txHash is settled async — check /dashboard/:payer for confirmation
+				nonce:    req.paymentPayload?.nonce,
+				provider: req.paymentPayload?.provider,
 			},
 		});
 	});
@@ -145,7 +144,7 @@ router.get("/btc", async (req: Request, res: Response, next) => {
 // ---------------------------------------------------------------------------
 // GET /api/v1/eth
 // ---------------------------------------------------------------------------
-router.get("/eth", async (req: Request, res: Response, next) => {
+router.get("/eth", async (req: Request, res: Response) => {
 	const price = await resolvePrice("eth");
 	requirePayment(price, PROVIDER, ENDPOINTS.eth.apiId, "ETH Price")(req, res, async () => {
 		res.json({
@@ -167,7 +166,7 @@ router.get("/eth", async (req: Request, res: Response, next) => {
 // ---------------------------------------------------------------------------
 // GET /api/v1/sol
 // ---------------------------------------------------------------------------
-router.get("/sol", async (req: Request, res: Response, next) => {
+router.get("/sol", async (req: Request, res: Response) => {
 	const price = await resolvePrice("sol");
 	requirePayment(price, PROVIDER, ENDPOINTS.sol.apiId, "SOL Price")(req, res, async () => {
 		res.json({
@@ -189,7 +188,7 @@ router.get("/sol", async (req: Request, res: Response, next) => {
 // ---------------------------------------------------------------------------
 // GET /api/v1/gas
 // ---------------------------------------------------------------------------
-router.get("/gas", async (req: Request, res: Response, next) => {
+router.get("/gas", async (req: Request, res: Response) => {
 	const price = await resolvePrice("gas");
 	requirePayment(price, PROVIDER, ENDPOINTS.gas.apiId, "Gas Tracker")(req, res, async () => {
 		const base = 20 + Math.floor(Math.random() * 30);

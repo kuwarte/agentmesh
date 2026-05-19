@@ -1,29 +1,53 @@
+/**
+ * payment.routes.ts
+ *
+ * Payment utility endpoints — used by agents and the frontend before/after
+ * making paid API calls.
+ *
+ * GET  /payment/nonce            — generate a fresh nonce + deadline
+ * POST /payment/verify           — pre-flight signature check
+ * GET  /payment/balance/:address — USDC balance for any wallet
+ * GET  /payment/status           — payment layer health check
+ */
+
 import { Router, Request, Response } from "express";
 import { ethers } from "ethers";
 import { blockchainService } from "../services/blockchain.service";
 
 const router = Router();
+const param = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);
 
-/**
- * GET /payment/nonce
- * Generates a fresh payment nonce + deadline
- */
+// ---------------------------------------------------------------------------
+// GET /payment/nonce
+// Returns a cryptographically random nonce and a 5-minute deadline.
+// Agents call this before signing a payment authorization.
+//
+// Response: { success, nonce, deadline }
+//   nonce    — 32-byte hex string (0x-prefixed)
+//   deadline — unix timestamp (seconds), expires in 5 minutes
+// ---------------------------------------------------------------------------
 router.get("/nonce", (_req: Request, res: Response) => {
-	const nonce = ethers.hexlify(ethers.randomBytes(32));
-	const deadline = Math.floor(Date.now() / 1000) + 60 * 5; // 5 min
+	const nonce    = ethers.hexlify(ethers.randomBytes(32));
+	const deadline = Math.floor(Date.now() / 1000) + 60 * 5;
 
-	res.json({
-		success: true,
-		nonce,
-		deadline,
-	});
+	res.json({ success: true, nonce, deadline });
 });
 
-/**
- * POST /payment/verify
- * Pre-flight verification before hitting paid API
- * Body: { payer, provider, amount, nonce, deadline, signature }
- */
+// ---------------------------------------------------------------------------
+// POST /payment/verify
+// Pre-flight signature verification — call this before hitting a paid endpoint
+// to confirm the signature is valid without spending a nonce.
+//
+// Body: { payer, provider, amount, nonce, deadline, signature }
+//   payer     — agent wallet address that signed
+//   provider  — provider wallet address
+//   amount    — USDC raw units (6 decimals), e.g. "1000" = $0.001
+//   nonce     — 0x-prefixed 32-byte hex from GET /payment/nonce
+//   deadline  — unix timestamp from GET /payment/nonce
+//   signature — ECDSA signature over (facilitator, payer, provider, amount, nonce, deadline)
+//
+// Response: { success, valid, reason? }
+// ---------------------------------------------------------------------------
 router.post("/verify", async (req: Request, res: Response) => {
 	try {
 		const { payer, provider, amount, nonce, deadline, signature } = req.body;
@@ -31,64 +55,57 @@ router.post("/verify", async (req: Request, res: Response) => {
 		if (!payer || !provider || !amount || !nonce || !deadline || !signature) {
 			return res.status(400).json({
 				success: false,
-				error: "Missing payment fields (required: payer, provider, amount, nonce, deadline, signature)",
+				error:   "Required fields: payer, provider, amount, nonce, deadline, signature",
 			});
 		}
 
 		const result = blockchainService.verifyPayment({
 			payer,
 			provider,
-			amount: BigInt(amount),
+			amount:   BigInt(amount),
 			nonce,
 			deadline: Number(deadline),
 			signature,
 		});
 
-		return res.json({
-			success: true,
-			valid: result.valid,
-			reason: result.reason,
-		});
+		return res.json({ success: true, valid: result.valid, reason: result.reason ?? null });
 	} catch (err: any) {
-		return res.status(500).json({
-			success: false,
-			error: err.message,
-		});
+		return res.status(500).json({ success: false, error: err.message });
 	}
 });
 
-/**
- * GET /payment/balance/:address
- * Check USDC balance on-chain (or mock mode)
- */
+// ---------------------------------------------------------------------------
+// GET /payment/balance/:address
+// Returns the USDC balance for any wallet address.
+// Useful for the dashboard and provider portal wallet display.
+//
+// Response: { success, address, usdcBalance }
+//   usdcBalance — human-readable string, e.g. "10.000000"
+// ---------------------------------------------------------------------------
 router.get("/balance/:address", async (req: Request, res: Response) => {
 	try {
-		const balance = await blockchainService.getUSDCBalance(req.params.address as string);
+		const address = param(req.params.address);
+		const balance = await blockchainService.getUSDCBalance(address);
 
-		res.json({
-			success: true,
-			address: req.params.address,
-			usdcBalance: balance,
-		});
+		res.json({ success: true, address, usdcBalance: balance });
 	} catch (err: any) {
-		res.status(500).json({
-			success: false,
-			error: err.message,
-		});
+		res.status(500).json({ success: false, error: err.message });
 	}
 });
 
-/**
- * GET /payment/status
- * System health check for payment layer
- */
+// ---------------------------------------------------------------------------
+// GET /payment/status
+// Payment layer health check — chain connection, contract addresses, network.
+//
+// Response: { success, chainConnected, facilitator, network, explorer }
+// ---------------------------------------------------------------------------
 router.get("/status", (_req: Request, res: Response) => {
 	res.json({
-		success: true,
+		success:        true,
 		chainConnected: blockchainService.isReady(),
-		facilitator: process.env.X402_FACILITATOR_ADDRESS || "not set",
-		network: process.env.CHAIN_NAME || "morphl2",
-		mode: process.env.FOUNDRY_MODE || "local",
+		facilitator:    process.env.X402_FACILITATOR_ADDRESS || "not set",
+		network:        process.env.CHAIN_NAME || "morph_hoodi",
+		explorer:       "https://explorer-hoodi.morphl2.io",
 	});
 });
 
