@@ -1,11 +1,10 @@
-import Navbar from '@/components/layout/Navbar'
-import Footer from '@/components/layout/Footer'
-import Hero from '@/components/sections/Hero'
-// import Problems from '@/components/sections/Problems'
-// import TechnicalApproach from '@/components/sections/TechnicalApproach'
-// import Protocol from '@/components/sections/Protocol'
-import UnitEconomics from '@/components/sections/UnitEconomics'
-import CTA from '@/components/sections/CTA'
+import Footer from "@/components/layout/Footer";
+import Navbar from "@/components/layout/Navbar";
+import Hero from "@/components/sections/Hero";
+import Problems from '@/components/sections/Problems'
+import CTA from "@/components/sections/CTA";
+import TechnicalApproach from "@/components/sections/TechnicalApproach";
+import UnitEconomics from "@/components/sections/UnitEconomics";
 
 export default function HomePage() {
   return (
@@ -13,13 +12,12 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        {/* {/* {/* <Problems />
+        <Problems />
         <TechnicalApproach />
-        <Protocol /> */}
         <UnitEconomics />
         <CTA />
       </main>
       <Footer />
     </>
-  )
+  );
 }
