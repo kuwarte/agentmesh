@@ -200,6 +200,46 @@ class BlockchainService {
 		}
 	}
 
+	// Register a new API on-chain (called by provider via backend)
+	async registerAPI(name: string, endpoint: string, pricePerCall: bigint): Promise<{ apiId: string; txHash: string } | null> {
+		try {
+			const registryWithSigner = registry.connect(signer) as typeof registry;
+			const tx = await registryWithSigner.registerAPI(name, endpoint, pricePerCall);
+			const receipt = await tx.wait();
+
+			// Extract apiId from APIRegistered event
+			const iface = registry.interface;
+			let apiId = "";
+			for (const log of receipt.logs) {
+				try {
+					const parsed = iface.parseLog(log);
+					if (parsed && parsed.name === "APIRegistered") {
+						apiId = parsed.args.apiId;
+						break;
+					}
+				} catch {}
+			}
+
+			return { apiId, txHash: receipt.hash };
+		} catch (err: any) {
+			console.error("[registry] registerAPI failed:", err);
+			return null;
+		}
+	}
+
+	// Update API price / active status on-chain (provider only)
+	async updateAPI(apiId: string, newPrice: bigint, active: boolean): Promise<{ txHash: string } | null> {
+		try {
+			const registryWithSigner = registry.connect(signer) as typeof registry;
+			const tx = await registryWithSigner.updateAPI(apiId, newPrice, active);
+			const receipt = await tx.wait();
+			return { txHash: receipt.hash };
+		} catch (err: any) {
+			console.error("[registry] updateAPI failed:", err);
+			return null;
+		}
+	}
+
 	// USDC bal
 	async getUSDCBalance(address: string) {
 		try {
