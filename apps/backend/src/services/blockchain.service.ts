@@ -20,6 +20,7 @@ const facilitator = new ethers.Contract(
 
 // types
 export interface PaymentPayload {
+	payer: string;
 	provider: string;
 	amount: bigint;
 	nonce: string;
@@ -47,15 +48,22 @@ class BlockchainService {
 	}
 
 	// signature verification
-	verifyPayment(payload: PaymentPayload) {
+	// Message hash must match exactly what X402Facilitator.settle() reconstructs:
+	// keccak256(abi.encodePacked(address(this), msg.sender, provider, amount, nonce, deadline))
+	// where msg.sender is the payer (agent wallet).
+	verifyPayment(payload: PaymentPayload & { payer: string }) {
 		try {
 			const facilitatorAddress = process.env.X402_FACILITATOR_ADDRESS!;
+
+			if (payload.deadline < Math.floor(Date.now() / 1000)) {
+				return { valid: false, reason: "Expired signature" };
+			}
 
 			const encoded = ethers.solidityPacked(
 				["address", "address", "address", "uint256", "bytes32", "uint256"],
 				[
 					facilitatorAddress,
-					payload.provider, // verify off-chain only
+					payload.payer,    // msg.sender in the contract (the agent)
 					payload.provider,
 					payload.amount,
 					payload.nonce,
@@ -68,12 +76,8 @@ class BlockchainService {
 
 			const recovered = ethers.recoverAddress(ethSignedHash, payload.signature);
 
-			if (!ethers.isAddress(recovered)) {
-				return { valid: false, reason: "Invalid signature" };
-			}
-
-			if (payload.deadline < Math.floor(Date.now() / 1000)) {
-				return { valid: false, reason: "Expired signature" };
+			if (recovered.toLowerCase() !== payload.payer.toLowerCase()) {
+				return { valid: false, reason: "Signature does not match payer" };
 			}
 
 			return { valid: true, signer: recovered };
@@ -147,6 +151,41 @@ class BlockchainService {
 			};
 		} catch {
 			return null;
+		}
+	}
+
+	async getProviderAPIs(providerAddress: string) {
+		try {
+			const ids: string[] = await registry.getProviderAPIs(providerAddress);
+
+			const results = await Promise.all(
+				ids.map(async (id) => {
+					const api = await registry.getAPI(id);
+					return {
+						apiId: id,
+						provider: api.provider,
+						name: api.name,
+						endpoint: api.endpoint,
+						pricePerCall: api.pricePerCall,
+						active: api.active,
+					};
+				})
+			);
+
+			return results;
+		} catch (err) {
+			console.error("[registry] getProviderAPIs failed:", err);
+			return [];
+		}
+	}
+
+	async totalAPIs(): Promise<number> {
+		try {
+			const total = await registry.totalAPIs();
+			return Number(total);
+		} catch (err) {
+			console.error("[registry] totalAPIs failed:", err);
+			return 0;
 		}
 	}
 

@@ -26,21 +26,22 @@ function build402(priceRaw: bigint, provider: string) {
 
 export function requirePayment(priceRaw: bigint, provider: string) {
 	return async (req: Request, res: Response, next: NextFunction) => {
+		const payer = req.headers["x-payment-payer"] as string;
 		const providerHeader = req.headers["x-payment-provider"] as string;
 		const amount = req.headers["x-payment-amount"] as string;
 		const nonce = req.headers["x-payment-nonce"] as string;
 		const deadline = req.headers["x-payment-deadline"] as string;
 		const signature = req.headers["x-payment-signature"] as string;
 
-		// missing headers
-		if (!providerHeader || !amount || !nonce || !deadline || !signature) {
+		// missing headers → return 402 with payment requirements
+		if (!payer || !providerHeader || !amount || !nonce || !deadline || !signature) {
 			return res.status(402).json(build402(priceRaw, provider));
 		}
 
 		const amountBig = BigInt(amount);
 		const deadlineNum = Number(deadline);
 
-		// check underpayment
+		// underpayment check
 		if (amountBig < priceRaw) {
 			return res.status(402).json({
 				error: "Underpayment",
@@ -49,11 +50,13 @@ export function requirePayment(priceRaw: bigint, provider: string) {
 			});
 		}
 
+		// fast nonce check before doing any crypto
 		if (nonceService.has(nonce)) {
 			return res.status(402).json({ error: "Nonce already used" });
 		}
 
 		const payload: PaymentPayload = {
+			payer,
 			provider: providerHeader,
 			amount: amountBig,
 			nonce: nonce as `0x${string}`,
@@ -70,6 +73,7 @@ export function requirePayment(priceRaw: bigint, provider: string) {
 			});
 		}
 
+		// atomic consume — guards against race conditions
 		const ok = nonceService.consume(nonce, providerHeader, amount);
 		if (!ok) {
 			return res.status(402).json({ error: "Nonce race condition" });
@@ -78,6 +82,7 @@ export function requirePayment(priceRaw: bigint, provider: string) {
 		req.paymentPayload = payload;
 		req.apiPrice = priceRaw;
 
+		// settle on-chain after response is sent successfully
 		res.on("finish", () => {
 			if (res.statusCode >= 200 && res.statusCode < 300) {
 				blockchainService.settlePayment(payload).catch((err) => {

@@ -22,19 +22,21 @@ router.get("/nonce", (_req: Request, res: Response) => {
 /**
  * POST /payment/verify
  * Pre-flight verification before hitting paid API
+ * Body: { payer, provider, amount, nonce, deadline, signature }
  */
 router.post("/verify", async (req: Request, res: Response) => {
 	try {
-		const { provider, amount, nonce, deadline, signature } = req.body;
+		const { payer, provider, amount, nonce, deadline, signature } = req.body;
 
-		if (!provider || !amount || !nonce || !deadline || !signature) {
+		if (!payer || !provider || !amount || !nonce || !deadline || !signature) {
 			return res.status(400).json({
 				success: false,
-				error: "Missing payment fields",
+				error: "Missing payment fields (required: payer, provider, amount, nonce, deadline, signature)",
 			});
 		}
 
 		const result = blockchainService.verifyPayment({
+			payer,
 			provider,
 			amount: BigInt(amount),
 			nonce,

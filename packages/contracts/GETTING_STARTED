@@ -1,0 +1,197 @@
+AGENTMESH — GETTING STARTED
+===========================
+
+Prerequisites
+-------------
+  - Foundry  (forge, anvil, cast)   https://getfoundry.sh
+  - Node.js 18+
+  - pnpm
+
+
+STEP 1 — Start a local blockchain
+----------------------------------
+Open a terminal and leave it running:
+
+  anvil
+
+Anvil prints 10 funded accounts with private keys.
+Copy Account #0 address and private key — you will use them below.
+
+  Example output:
+    Account #0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (10000 ETH)
+    Private Key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+
+STEP 2 — Build the contracts
+------------------------------
+  cd packages/contracts
+  forge build
+
+Output ABIs land in packages/contracts/out/
+The backend imports them from there — do not skip this step.
+
+
+STEP 3 — Deploy MockUSDC (local only)
+---------------------------------------
+The contracts need a USDC token address. On anvil we deploy a mock.
+
+  MINT_TO=<ACCOUNT_0_ADDRESS> \
+  forge script script/DeployMockUSDC.s.sol \
+    --rpc-url http://127.0.0.1:8545 \
+    --private-key <ACCOUNT_0_PRIVATE_KEY> \
+    --broadcast
+
+Copy the printed MockUSDC address.
+
+
+STEP 4 — Deploy APIRegistry + X402Facilitator
+-----------------------------------------------
+Use the MockUSDC address from step 3.
+TREASURY_ADDRESS can be any wallet — Account #1 works fine for local testing.
+
+  USDC_ADDRESS=<MOCK_USDC_ADDRESS> \
+  TREASURY_ADDRESS=<ACCOUNT_1_ADDRESS> \
+  forge script script/Deploy.s.sol \
+    --rpc-url http://127.0.0.1:8545 \
+    --private-key <ACCOUNT_0_PRIVATE_KEY> \
+    --broadcast
+
+Copy the printed APIRegistry and X402Facilitator addresses.
+
+
+STEP 5 — Configure the backend .env
+-------------------------------------
+Edit apps/backend/.env:
+
+  RPC_URL=http://127.0.0.1:8545
+  GATEWAY_PRIVATE_KEY=<ACCOUNT_0_PRIVATE_KEY>
+  API_REGISTRY_ADDRESS=<APIREGISTRY_ADDRESS>
+  X402_FACILITATOR_ADDRESS=<X402FACILITATOR_ADDRESS>
+  USDC_ADDRESS=<MOCK_USDC_ADDRESS>
+  PROVIDER_ADDRESS=<ACCOUNT_0_ADDRESS>
+
+GATEWAY_PRIVATE_KEY is used by the backend to call facilitator.settle() on-chain.
+PROVIDER_ADDRESS is the wallet that receives API payments.
+
+
+STEP 6 — Install backend dependencies
+---------------------------------------
+  cd apps/backend
+  pnpm install
+
+
+STEP 7 — Start the backend
+----------------------------
+  pnpm dev
+
+Server starts on http://localhost:3001
+
+  GET  /                        health check
+  GET  /registry/apis           list all on-chain APIs
+  GET  /registry/api/:id        get single API by ID
+  GET  /registry/provider/:addr get APIs by provider
+  GET  /registry/stats          total API count
+  GET  /payment/nonce           get a fresh nonce + deadline
+  POST /payment/verify          pre-flight signature check
+  GET  /payment/balance/:addr   USDC balance
+  GET  /payment/status          payment layer health
+  GET  /api/v1/btc              paid endpoint (0.001 USDC)
+
+
+STEP 8 — Register a sample API on-chain
+-----------------------------------------
+  cast send <APIREGISTRY_ADDRESS> \
+    "registerAPI(string,string,uint256)" \
+    "BTC Price API" \
+    "http://localhost:3001/api/v1/btc" \
+    1000 \
+    --private-key <ACCOUNT_0_PRIVATE_KEY> \
+    --rpc-url http://127.0.0.1:8545
+
+Verify it was registered:
+
+  curl http://localhost:3001/registry/apis
+
+
+STEP 9 — Approve USDC spending (agent wallet)
+-----------------------------------------------
+Before an agent can pay, it must approve the facilitator to spend its USDC.
+Run this once per agent wallet:
+
+  cast send <MOCK_USDC_ADDRESS> \
+    "approve(address,uint256)" \
+    <X402FACILITATOR_ADDRESS> \
+    1000000000000 \
+    --private-key <AGENT_PRIVATE_KEY> \
+    --rpc-url http://127.0.0.1:8545
+
+
+STEP 10 — Make a paid API call
+--------------------------------
+The x402 flow requires the agent to:
+  1. Get a nonce from the gateway
+  2. Sign the payment message
+  3. Send the signed headers with the API request
+
+Get a nonce:
+  curl http://localhost:3001/payment/nonce
+
+Sign the payment (Node.js snippet):
+
+  const { ethers } = require("ethers");
+
+  const facilitatorAddress = "<X402FACILITATOR_ADDRESS>";
+  const payerAddress       = "<AGENT_ADDRESS>";
+  const providerAddress    = "<PROVIDER_ADDRESS>";
+  const amount             = 1000n;          // 0.001 USDC
+  const nonce              = "<NONCE_FROM_STEP_ABOVE>";
+  const deadline           = <DEADLINE_FROM_STEP_ABOVE>;
+
+  const encoded = ethers.solidityPacked(
+    ["address", "address", "address", "uint256", "bytes32", "uint256"],
+    [facilitatorAddress, payerAddress, providerAddress, amount, nonce, deadline]
+  );
+  const hash = ethers.keccak256(encoded);
+  const wallet = new ethers.Wallet("<AGENT_PRIVATE_KEY>");
+  const signature = await wallet.signMessage(ethers.getBytes(hash));
+
+  console.log("signature:", signature);
+
+Call the paid endpoint:
+
+  curl http://localhost:3001/api/v1/btc \
+    -H "x-payment-payer: <AGENT_ADDRESS>" \
+    -H "x-payment-provider: <PROVIDER_ADDRESS>" \
+    -H "x-payment-amount: 1000" \
+    -H "x-payment-nonce: <NONCE>" \
+    -H "x-payment-deadline: <DEADLINE>" \
+    -H "x-payment-signature: <SIGNATURE>"
+
+On success the gateway returns the BTC price and settles the USDC payment
+on-chain in the background via X402Facilitator.settle().
+
+
+Run contract tests
+-------------------
+  cd packages/contracts
+  forge test -vv
+
+
+Troubleshooting
+---------------
+  "RPC not available"
+    → Make sure anvil is running (step 1)
+
+  "Invalid signature" / "Signature does not match payer"
+    → The x-payment-payer header must be the address that signed the message
+    → Double-check facilitatorAddress, payerAddress, providerAddress match exactly
+
+  "Nonce used"
+    → Each nonce is single-use. Get a fresh one from GET /payment/nonce
+
+  "Provider payment failed"
+    → Agent wallet has not approved the facilitator (step 9)
+    → Or agent wallet has insufficient USDC balance
+
+  ABIs not found (import error on startup)
+    → Run forge build in packages/contracts first (step 2)

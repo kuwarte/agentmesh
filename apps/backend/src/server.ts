@@ -5,8 +5,8 @@ dotenv.config();
 
 import { blockchainService } from "./services/blockchain.service";
 import apiRoutes from "./routes/api.routes";
-// import paymentRoutes from "./routes/payment.routes";
-// import registryRoutes from "./routes/registry.routes";
+import paymentRoutes from "./routes/payment.routes";
+import registryRoutes from "./routes/registry.routes";
 
 const app = express();
 
@@ -16,12 +16,12 @@ app.use(express.json());
 // req_logger
 app.use((req, _res, next) => {
 	console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+	next();
 });
 
-// TODO: routes
 app.use("/api/v1", apiRoutes);
-// app.use("/payment", paymentRoutes);
-// app.use("/registry", registryRoutes);
+app.use("/payment", paymentRoutes);
+app.use("/registry", registryRoutes);
 
 // health_check
 app.get("/", (_req: Request, res: Response) => {
@@ -41,7 +41,6 @@ app.get("/", (_req: Request, res: Response) => {
 	});
 });
 
-// boot seq
 const PORT = Number(process.env.PORT) || 3001;
 
 async function bootstrap() {
@@ -53,7 +52,7 @@ async function bootstrap() {
 			console.log(`\nAgentMesh Gateway running on http://localhost:${PORT}`);
 			console.log(`   Chain connected : ${blockchainService.isReady()}`);
 			console.log(`   API BTC sample  : http://localhost:${PORT}/api/v1/btc`);
-			console.log(`   Registry        : http://localhost:${PORT}/registry`);
+			console.log(`   Registry        : http://localhost:${PORT}/registry/apis`);
 			console.log(`   Payment status  : http://localhost:${PORT}/payment/status\n`);
 		});
 	} catch (err) {
