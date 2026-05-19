@@ -10,25 +10,29 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
  * @author Defi-nitely Broke
  * @notice Facilitates x402 payments from AI agents to API providers
  * @dev Implements signature-based payment authorization with replay protection
- * 
+ *
  * x402 Protocol Overview:
  * - Agent signs payment intent off-chain
- * - Gateway validates signature and settles on-chain
+ * - Gateway calls settle() on behalf of the agent (Option B architecture)
+ * - Contract verifies the signature came from `payer`, not msg.sender
+ * - This allows autonomous gateway-mediated settlement with no human loop
  * - Prevents replay attacks via nonce tracking
  * - Charges platform fee (default 1%)
- * 
+ *
  * Security Features:
  * - ECDSA signature verification (prevents unauthorized payments)
  * - Nonce-based replay protection
  * - Deadline enforcement (prevents stale transactions)
  * - Reentrancy protection (nonce marked before transfers)
- * 
+ *
  * Payment Flow:
- * 1. Agent signs payment message with wallet
- * 2. Gateway calls settle() with signature
- * 3. Contract verifies signature matches payer
- * 4. Transfers USDC to provider (minus fee)
- * 5. Transfers fee to treasury
+ * 1. Agent signs payment message with its wallet (off-chain)
+ * 2. Agent sends signed headers to the gateway API
+ * 3. Gateway verifies signature, serves the API response
+ * 4. Gateway calls settle(payer, ...) on-chain
+ * 5. Contract verifies signature matches payer address
+ * 6. Transfers USDC from payer to provider (minus fee)
+ * 7. Transfers fee to treasury
  */
 contract X402Facilitator {
     using ECDSA for bytes32;
@@ -45,12 +49,12 @@ contract X402Facilitator {
     uint256 public feeBps = 100;
 
     /// @notice Tracks used nonces to prevent replay attacks
-    /// @dev Mapping from nonce hash to boolean (true = used)
+    /// @dev Mapping from nonce to boolean (true = used)
     mapping(bytes32 => bool) public usedNonces;
 
     /**
      * @notice Emitted when a payment is successfully settled
-     * @param payer Agent wallet that paid
+     * @param payer Agent wallet that authorized and paid
      * @param provider API provider receiving payment
      * @param amount Total payment amount (before fee)
      * @param fee Platform fee charged
@@ -71,13 +75,9 @@ contract X402Facilitator {
     event FeeUpdated(uint256 newFeeBps);
 
     /**
-     * @notice Initialize the payment router
+     * @notice Initialize the payment facilitator
      * @param _usdc USDC token address on Morph L2
      * @param _treasury Treasury address for collecting fees
-     * 
-     * Requirements:
-     * - USDC address must not be zero
-     * - Treasury address must not be zero
      */
     constructor(address _usdc, address _treasury) {
         require(_usdc != address(0), "Invalid USDC");
@@ -87,26 +87,30 @@ contract X402Facilitator {
     }
 
     /**
-     * @notice Settle an x402 payment from agent to provider
-     * @dev Verifies signature, prevents replay, transfers USDC
-     * 
+     * @notice Settle an x402 payment on behalf of an agent
+     * @dev Gateway calls this after verifying the agent's signature off-chain.
+     *      The signature is verified against `payer`, not msg.sender, so the
+     *      gateway wallet can submit the transaction autonomously.
+     *
+     * @param payer   Agent wallet that signed the payment authorization
      * @param provider API provider receiving payment
-     * @param amount Total payment in USDC (6 decimals, e.g., 10000 = $0.01)
-     * @param nonce Unique identifier for this payment (prevents replay)
-     * @param deadline Unix timestamp when signature expires
-     * @param signature ECDSA signature from payer authorizing payment
+     * @param amount  Total payment in USDC (6 decimals, e.g., 1000 = $0.001)
+     * @param nonce   Unique identifier for this payment (prevents replay)
+     * @param deadline Unix timestamp when the authorization expires
+     * @param signature ECDSA signature from payer over (facilitator, payer, provider, amount, nonce, deadline)
      * @return bool True if payment succeeded
-     * 
+     *
      * Requirements:
-     * - Current time < deadline
+     * - Current time <= deadline
      * - Nonce not previously used
      * - Amount > 0
      * - Provider address valid
-     * - Signature must be from msg.sender (payer)
-     * - Payer must have approved router for USDC
+     * - Signature must recover to payer address
+     * - Payer must have approved this contract for USDC
      * - Payer must have sufficient USDC balance
      */
     function settle(
+        address payer,
         address provider,
         uint256 amount,
         bytes32 nonce,
@@ -117,56 +121,57 @@ contract X402Facilitator {
         require(!usedNonces[nonce], "Nonce used");
         require(amount > 0, "Invalid amount");
         require(provider != address(0), "Invalid provider");
+        require(payer != address(0), "Invalid payer");
 
+        // Mark nonce used before transfers (reentrancy protection)
         usedNonces[nonce] = true;
 
+        // Reconstruct the message the agent signed:
+        // keccak256(abi.encodePacked(facilitator, payer, provider, amount, nonce, deadline))
         bytes32 messageHash = keccak256(
             abi.encodePacked(
-                address(this), 
-                msg.sender,    
-                provider,       
-                amount,         
-                nonce,         
-                deadline       
+                address(this),
+                payer,
+                provider,
+                amount,
+                nonce,
+                deadline
             )
         );
 
         bytes32 ethSignedHash = messageHash.toEthSignedMessageHash();
-
         address signer = ethSignedHash.recover(signature);
 
-        require(signer == msg.sender, "Invalid signature");
+        // Verify signature came from the declared payer, not msg.sender
+        require(signer == payer, "Invalid signature");
 
         uint256 fee = (amount * feeBps) / 10000;
         uint256 providerAmount = amount - fee;
 
+        // Pull USDC from payer (agent must have approved this contract)
         require(
-            usdc.transferFrom(msg.sender, provider, providerAmount),
+            usdc.transferFrom(payer, provider, providerAmount),
             "Provider payment failed"
         );
 
         if (fee > 0) {
             require(
-                usdc.transferFrom(msg.sender, treasury, fee),
+                usdc.transferFrom(payer, treasury, fee),
                 "Fee payment failed"
             );
         }
 
-        emit PaymentSettled(msg.sender, provider, amount, fee, nonce);
+        emit PaymentSettled(payer, provider, amount, fee, nonce);
         return true;
     }
 
     /**
      * @notice Update platform fee (treasury only)
-     * @param newFeeBps New fee in basis points (100 = 1%)
-     * 
-     * Requirements:
-     * - Caller must be treasury
-     * - Fee must be <= 500 (5% max)
+     * @param newFeeBps New fee in basis points (100 = 1%, max 500 = 5%)
      */
     function setFeeBps(uint256 newFeeBps) external {
         require(msg.sender == treasury, "Only treasury");
-        require(newFeeBps <= 500, "Fee too high"); 
+        require(newFeeBps <= 500, "Fee too high");
         feeBps = newFeeBps;
         emit FeeUpdated(newFeeBps);
     }
@@ -174,10 +179,6 @@ contract X402Facilitator {
     /**
      * @notice Update treasury address (treasury only)
      * @param newTreasury New treasury address
-     * 
-     * Requirements:
-     * - Caller must be current treasury
-     * - New treasury must not be zero address
      */
     function setTreasury(address newTreasury) external {
         require(msg.sender == treasury, "Only treasury");

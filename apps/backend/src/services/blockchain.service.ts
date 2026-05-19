@@ -88,7 +88,11 @@ class BlockchainService {
 
 	async settlePayment(payload: PaymentPayload) {
 		try {
+			// Option B: gateway calls settle(payer, ...) on behalf of the agent.
+			// The contract verifies the signature matches payer, not msg.sender,
+			// enabling fully autonomous gateway-mediated settlement.
 			const tx = await facilitator.settle(
+				payload.payer,
 				payload.provider,
 				payload.amount,
 				payload.nonce,

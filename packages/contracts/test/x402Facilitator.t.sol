@@ -8,79 +8,130 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 contract MockUSDC is ERC20 {
-	constructor() ERC20("Mock USDC", "USDC") {}
+    constructor() ERC20("Mock USDC", "USDC") {}
 
-	function mint(address to, uint256 amount) external {
-		_mint(to, amount);
-	}
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
 }
 
 contract X402FacilitatorTest is Test {
-	using ECDSA for bytes32;
-	using MessageHashUtils for bytes32;
+    using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
 
-	X402Facilitator facilitator;
-	MockUSDC usdc;
+    X402Facilitator facilitator;
+    MockUSDC usdc;
 
-	address payer = address(0xA1);
-	address provider = address(0xB2);
-	address treasury = address(0xC3);
+    // gateway is a separate wallet — simulates the backend calling settle()
+    address gateway = address(0xD4);
+    address provider = address(0xB2);
+    address treasury = address(0xC3);
 
-	uint256 payerPrivateKey = 0xA11CE;
+    uint256 payerPrivateKey = 0xA11CE;
+    address payer;
 
-	function setUp() public {
-		usdc = new MockUSDC();
-		facilitator = new X402Facilitator(address(usdc), treasury);
+    function setUp() public {
+        usdc = new MockUSDC();
+        facilitator = new X402Facilitator(address(usdc), treasury);
 
-		payer = vm.addr(payerPrivateKey);
+        payer = vm.addr(payerPrivateKey);
 
-		usdc.mint(payer, 1000 ether);
+        usdc.mint(payer, 10_000 * 1e6);
 
-		vm.prank(payer);
-		usdc.approve(address(facilitator), 1000 ether);
-	}
+        // payer approves facilitator (agent does this once)
+        vm.prank(payer);
+        usdc.approve(address(facilitator), type(uint256).max);
+    }
 
-	function testSettlePayment() public {
-		uint256 amount = 100 ether;
-		bytes32 nonce = keccak256("nonce1");
-		uint256 deadline = block.timestamp + 1000;
+    /// @notice Helper: build the message hash the agent signs
+    function _buildMessageHash(
+        address _payer,
+        address _provider,
+        uint256 _amount,
+        bytes32 _nonce,
+        uint256 _deadline
+    ) internal view returns (bytes32) {
+        return keccak256(
+            abi.encodePacked(address(facilitator), _payer, _provider, _amount, _nonce, _deadline)
+        ).toEthSignedMessageHash();
+    }
 
-		bytes32 messageHash = keccak256(
-			abi.encodePacked(address(facilitator), payer, provider, amount, nonce, deadline)
-		).toEthSignedMessageHash();
+    /// @notice Gateway settles on behalf of agent — core autonomous flow
+    function testGatewaySettlesOnBehalfOfAgent() public {
+        uint256 amount = 1000; // 0.001 USDC
+        bytes32 nonce = keccak256("nonce1");
+        uint256 deadline = block.timestamp + 300;
 
-		(uint8 v, bytes32 r, bytes32 s) = vm.sign(payerPrivateKey, messageHash);
-		bytes memory signature = abi.encodePacked(r, s, v);
+        // Agent signs off-chain
+        bytes32 msgHash = _buildMessageHash(payer, provider, amount, nonce, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(payerPrivateKey, msgHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
 
-		vm.prank(payer);
+        uint256 providerBefore = usdc.balanceOf(provider);
+        uint256 treasuryBefore = usdc.balanceOf(treasury);
 
-		facilitator.settle(provider, amount, nonce, deadline, signature);
+        // Gateway (not payer) calls settle — this is the key Option B behavior
+        vm.prank(gateway);
+        bool ok = facilitator.settle(payer, provider, amount, nonce, deadline, signature);
 
-		uint256 fee = (amount * 100) / 10000;
-		uint256 providerAmount = amount - fee;
+        assertTrue(ok);
 
-		assertEq(usdc.balanceOf(provider), providerAmount);
-		assertEq(usdc.balanceOf(treasury), fee);
-	}
+        uint256 fee = (amount * 100) / 10000; // 1%
+        assertEq(usdc.balanceOf(provider), providerBefore + amount - fee);
+        assertEq(usdc.balanceOf(treasury), treasuryBefore + fee);
+    }
 
-	function testReplayAttackFails() public {
-		uint256 amount = 100 ether;
-		bytes32 nonce = keccak256("nonce2");
-		uint256 deadline = block.timestamp + 1000;
+    /// @notice Replay attack must fail
+    function testReplayAttackFails() public {
+        uint256 amount = 1000;
+        bytes32 nonce = keccak256("nonce2");
+        uint256 deadline = block.timestamp + 300;
 
-		bytes32 messageHash = keccak256(
-			abi.encodePacked(address(facilitator), payer, provider, amount, nonce, deadline)
-		).toEthSignedMessageHash();
+        bytes32 msgHash = _buildMessageHash(payer, provider, amount, nonce, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(payerPrivateKey, msgHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
 
-		(uint8 v, bytes32 r, bytes32 s) = vm.sign(payerPrivateKey, messageHash);
-		bytes memory signature = abi.encodePacked(r, s, v);
+        vm.prank(gateway);
+        facilitator.settle(payer, provider, amount, nonce, deadline, signature);
 
-		vm.prank(payer);
-		facilitator.settle(provider, amount, nonce, deadline, signature);
+        vm.expectRevert("Nonce used");
+        vm.prank(gateway);
+        facilitator.settle(payer, provider, amount, nonce, deadline, signature);
+    }
 
-		vm.expectRevert("Nonce used");
+    /// @notice Wrong signer must fail
+    function testWrongSignerFails() public {
+        uint256 amount = 1000;
+        bytes32 nonce = keccak256("nonce3");
+        uint256 deadline = block.timestamp + 300;
 
-		vm.prank(payer);
-		facilitator.settle(provider, amount, nonce, deadline, signature);
-	}
+        // Sign with a different key
+        uint256 wrongKey = 0xBAD;
+        bytes32 msgHash = _buildMessageHash(payer, provider, amount, nonce, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongKey, msgHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.expectRevert("Invalid signature");
+        vm.prank(gateway);
+        facilitator.settle(payer, provider, amount, nonce, deadline, signature);
+    }
+
+    /// @notice Expired deadline must fail
+    function testExpiredDeadlineFails() public {
+        uint256 amount = 1000;
+        bytes32 nonce = keccak256("nonce4");
+        uint256 deadline = block.timestamp - 1; // already expired
+
+        bytes32 msgHash = _buildMessageHash(payer, provider, amount, nonce, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(payerPrivateKey, msgHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.expectRevert("Expired");
+        vm.prank(gateway);
+        facilitator.settle(payer, provider, amount, nonce, deadline, signature);
+    }
 }

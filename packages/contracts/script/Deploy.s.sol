@@ -8,15 +8,22 @@ import "../src/X402Facilitator.sol";
 /**
  * @notice Deploys APIRegistry and X402Facilitator
  *
- * Usage (local anvil):
+ * Local anvil:
+ *   USDC_ADDRESS=<mock> TREASURY_ADDRESS=<addr> \
  *   forge script script/Deploy.s.sol \
  *     --rpc-url http://127.0.0.1:8545 \
- *     --private-key <ANVIL_PRIVATE_KEY> \
+ *     --private-key <ANVIL_KEY> \
  *     --broadcast
  *
- * The script reads USDC_ADDRESS and TREASURY_ADDRESS from env.
- * On anvil, pass a mock USDC address (deploy MockUSDC first or use the
- * address printed by the mock deploy below when MOCK_USDC=true).
+ * Morph Hoodi testnet:
+ *   USDC_ADDRESS=<mock_hoodi> TREASURY_ADDRESS=<addr> \
+ *   forge script script/Deploy.s.sol \
+ *     --rpc-url morph_hoodi \
+ *     --private-key <YOUR_PRIVATE_KEY> \
+ *     --broadcast
+ *
+ * Chain ID: 2910
+ * Explorer: https://explorer-hoodi.morphl2.io
  */
 contract Deploy is Script {
     function run() external {
@@ -30,9 +37,12 @@ contract Deploy is Script {
 
         vm.stopBroadcast();
 
+        console.log("=== Deployed Contracts ===");
         console.log("APIRegistry     :", address(registry));
         console.log("X402Facilitator :", address(facilitator));
         console.log("USDC            :", usdcAddress);
         console.log("Treasury        :", treasury);
+        console.log("");
+        console.log("Copy these into apps/backend/.env");
     }
 }
