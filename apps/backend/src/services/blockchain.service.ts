@@ -63,7 +63,7 @@ class BlockchainService {
 				["address", "address", "address", "uint256", "bytes32", "uint256"],
 				[
 					facilitatorAddress,
-					payload.payer,    // msg.sender in the contract (the agent)
+					payload.payer, // msg.sender in the contract (the agent)
 					payload.provider,
 					payload.amount,
 					payload.nonce,
@@ -130,7 +130,14 @@ class BlockchainService {
 				})
 			);
 
-			return results;
+			return results.map((api) => ({
+				apiId: api.apiId,
+				provider: api.provider,
+				name: api.name,
+				endpoint: api.endpoint,
+				pricePerCall: api.pricePerCall?.toString?.() ?? api.pricePerCall,
+				active: api.active,
+			}));
 		} catch (err) {
 			console.error("[registry] failed:", err);
 			return [];
@@ -146,7 +153,7 @@ class BlockchainService {
 				provider: api.provider,
 				name: api.name,
 				endpoint: api.endpoint,
-				pricePerCall: api.pricePerCall,
+				pricePerCall: api.pricePerCall?.toString?.() ?? api.pricePerCall,
 				active: api.active,
 			};
 		} catch {
@@ -166,7 +173,7 @@ class BlockchainService {
 						provider: api.provider,
 						name: api.name,
 						endpoint: api.endpoint,
-						pricePerCall: api.pricePerCall,
+						pricePerCall: api.pricePerCall.toString(),
 						active: api.active,
 					};
 				})
