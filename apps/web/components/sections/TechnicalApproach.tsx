@@ -9,14 +9,14 @@ const STEPS = [
     num: "01",
     title: "Registry Discovery",
     body: "The agent queries the on-chain ",
-    code: "AgentMeshRegistry",
+    code: "APIRegistry",
     body2:
       " contract on Morph L2 to resolve an endpoint URL and its USDC price per call. No off-chain directory, no account required.",
   },
   {
     num: "02",
     title: "Challenge Initiation",
-    body: "The agent issues an unsigned GET request. Provider middleware intercepts it and returns HTTP 402 Payment Required — containing the endpoint ID, required USDC amount, facilitator contract address, and chain ID.",
+    body: "The agent issues an unsigned GET request. Provider middleware intercepts it and returns HTTP 402 Payment Required — containing the endpoint ID, required USDC amount, facilitator contract address, chain ID, and instructions.",
     code: null,
     body2: "",
   },
