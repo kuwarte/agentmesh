@@ -269,14 +269,16 @@ class BlockchainService {
 			const CHUNK      = 5000;
 			const latest     = await provider.getBlockNumber();
 			const EXPLORER   = "https://explorer-hoodi.morphl2.io/tx";
+			const deployBlock = Number(process.env.FACILITATOR_DEPLOY_BLOCK ?? 5520000);
 
 			// Build a name lookup from the registry for provider address → API name
 			const allAPIs = await this.getAllAPIs();
 
 			let allEvents: ethers.EventLog[] = [];
 
-			// Paginate from block 0 to latest in 5000-block chunks
-			for (let from = 0; from <= latest; from += CHUNK) {
+			// Paginate from deployBlock to latest in 5000-block chunks
+			let chunksScanned = 0;
+			for (let from = deployBlock; from <= latest; from += CHUNK) {
 				const to = Math.min(from + CHUNK - 1, latest);
 				try {
 					const filter = facilitator.filters.PaymentSettled();
@@ -284,6 +286,14 @@ class BlockchainService {
 					allEvents    = allEvents.concat(chunk as ethers.EventLog[]);
 				} catch {
 					// Skip chunks that fail — non-fatal
+				}
+				chunksScanned++;
+				// Log progress every 5 chunks (25000 blocks)
+				if (chunksScanned % 5 === 0) {
+					const scanned = from - deployBlock;
+					const total   = latest - deployBlock;
+					const pct     = total > 0 ? Math.round((scanned / total) * 100) : 100;
+					console.log(`[ledger] Scanning... block ${from}/${latest} (${pct}%) — ${allEvents.length} events found`);
 				}
 			}
 
