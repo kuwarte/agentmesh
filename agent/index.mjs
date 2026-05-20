@@ -132,7 +132,7 @@ const executeTask = async (msg, taskFn) => {
 	}
 };
 
-const pause = (ms = 400) => new Promise((r) => setTimeout(r, ms));
+const pause = (ms = 2000) => new Promise((r) => setTimeout(r, ms));
 
 // x402 payment helpers
 async function signPayment(provider, amount, nonce, deadline) {
