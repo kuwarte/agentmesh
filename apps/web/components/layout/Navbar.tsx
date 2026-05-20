@@ -6,9 +6,9 @@ import { useEffect, useState } from "react";
 import styles from "./Navbar.module.css";
 
 const NAV_LINKS = [
-  { label: "Protocol", href: "#protocol" },
-  { label: "Docs", href: "#docs" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Protocol", href: "protocol" },
+  { label: "Docs", href: "docs" },
+  { label: "Pricing", href: "pricing" },
 ];
 
 export default function Navbar() {
