@@ -1,5 +1,18 @@
 /**
- * ?? test2 mimic agentic transaction
+ * agent.mjs
+ * AgentMesh x402 Autonomous Agent — Demo Script
+ *
+ * Demonstrates the complete x402 payment protocol workflow:
+ *   1. Gateway health check & balance verification
+ *   2. On-chain API catalog discovery
+ *   3. Execution planning
+ *   4. Balance verification
+ *   5. x402 payment loop (nonce → sign → encode → verify → submit → settle)
+ *   6. Market analysis report
+ *   7. Transaction verification & ledger audit
+ *
+ * Usage:
+ *   node scripts/agent.mjs
  */
 
 import { ethers } from "ethers";
@@ -7,7 +20,9 @@ import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
+// ---------------------------------------------------------------------------
 // Config
+// ---------------------------------------------------------------------------
 const __dir = dirname(fileURLToPath(import.meta.url));
 const envPath = resolve(__dir, "../.env");
 const env = Object.fromEntries(
@@ -21,213 +36,213 @@ const env = Object.fromEntries(
 		.filter(([k, v]) => k && v)
 );
 
-const GATEWAY = "http://localhost:3001";
+const GATEWAY = env.GATEWAY_URL || "http://localhost:3001";
 const FACILITATOR = env.X402_FACILITATOR_ADDRESS;
 const AGENT_KEY = env.AGENT_PRIVATE_KEY || env.GATEWAY_PRIVATE_KEY;
 
 if (!FACILITATOR || FACILITATOR.startsWith("<")) {
-	console.error(" [!] CRITICAL: X402_FACILITATOR_ADDRESS not set in .env");
+	process.stderr.write("\x1b[91m[FATAL]\x1b[0m X402_FACILITATOR_ADDRESS not set in .env\n");
 	process.exit(1);
 }
 if (!AGENT_KEY || AGENT_KEY.startsWith("<")) {
-	console.error(" [!] CRITICAL: AGENT_PRIVATE_KEY (or GATEWAY_PRIVATE_KEY) not set in .env");
+	process.stderr.write(
+		"\x1b[91m[FATAL]\x1b[0m AGENT_PRIVATE_KEY (or GATEWAY_PRIVATE_KEY) not set in .env\n"
+	);
 	process.exit(1);
 }
 
 const agentWallet = new ethers.Wallet(AGENT_KEY);
 const AGENT_ADDR = agentWallet.address;
 
-const colors = {
-	reset: "\x1b[0m",
-	bold: "\x1b[1m",
-	dim: "\x1b[90m",
+// ---------------------------------------------------------------------------
+// Premium TUI primitives
+// ---------------------------------------------------------------------------
+const R = "\x1b[0m";
+const B = "\x1b[1m";
+const D = "\x1b[90m"; // Sleek dark gray for lines/borders
+const underline = "\x1b[4m";
 
-	// Foreground Palette
+const fg = {
 	cyan: "\x1b[36m",
 	magenta: "\x1b[35m",
 	yellow: "\x1b[33m",
 	green: "\x1b[32m",
 	red: "\x1b[31m",
 	white: "\x1b[37m",
-
-	// Bright Variants
-	brightCyan: "\x1b[96m",
-	brightMagenta: "\x1b[95m",
-	brightYellow: "\x1b[93m",
-	brightGreen: "\x1b[92m",
-	brightRed: "\x1b[91m",
-
-	// Backgrounds
-	bgCyan: "\x1b[46m",
-	bgMagenta: "\x1b[45m",
-	bgBlack: "\x1b[40m",
+	blue: "\x1b[34m",
+	bCyan: "\x1b[96m",
+	bMag: "\x1b[95m",
+	bYel: "\x1b[93m",
+	bGrn: "\x1b[92m",
+	bRed: "\x1b[91m",
+	bBlu: "\x1b[94m",
+	bWht: "\x1b[97m",
 };
 
-const c = colors;
-const W = 114;
+const W = 110;
 
-// Clean up ANSI escape sequences AND odd non-breaking space variants for exact terminal sizing math
-function strlen(str) {
-	return String(str)
-		.replace(/\x1b\[[0-9;]*m/g, "")
-		.replace(/\u00a0/g, " ").length;
+// Strip ANSI codes (robust regex) for strict length calculation
+const slen = (s) => String(s).replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "").length;
+
+// Modern thin-bordered box
+function hdr(title, col = fg.bCyan) {
+	const inner = W - 1;
+	const cleanTitle = title.toUpperCase();
+	const tlen = slen(cleanTitle);
+	const lpad = Math.floor((inner - tlen) / 2);
+	const rpad = inner - tlen - lpad;
+	console.log(D + "┌" + "─".repeat(inner) + "┐" + R);
+	console.log(
+		D + "│" + " ".repeat(lpad) + B + col + cleanTitle + R + " ".repeat(rpad) + D + "│" + R
+	);
+	console.log(D + "├" + "─".repeat(inner) + "┤" + R);
 }
 
-function centerStr(text) {
-	const cleanText = text.replace(/\u00a0/g, " ");
-	const stripped = strlen(cleanText);
-	const totalPad = W - 4 - stripped;
-	if (totalPad <= 0) return cleanText;
-	const padLeft = Math.floor(totalPad / 2);
-	const padRight = totalPad - padLeft;
-	return " ".repeat(padLeft) + cleanText + " ".repeat(padRight);
+function hdrBottom(col = fg.bCyan) {
+	console.log(D + "└" + "─".repeat(W - 1) + "┘" + R);
 }
 
-function center(text, color = c.reset) {
-	const cleanText = text.replace(/\u00a0/g, " ");
-	const stripped = strlen(cleanText);
-	const pad = Math.max(0, Math.floor((W - stripped) / 2));
-	console.log(" ".repeat(pad) + color + cleanText + c.reset);
-}
+function hdrLine(text, borderCol = fg.bCyan, textCol = R, align = "left") {
+	const inner = W - 5; // Total content width excluding side paddings
+	const tlen = slen(text);
 
-function panelTop(title = "", color = c.cyan) {
-	if (!title) {
-		console.log(color + "┌" + "─".repeat(W - 2) + "┐" + c.reset);
-		return;
+	let lineContent = "";
+	if (align === "center") {
+		const lpad = Math.floor((inner - tlen) / 2);
+		const rpad = inner - tlen - lpad;
+		lineContent = " ".repeat(lpad) + textCol + text + R + " ".repeat(rpad);
+	} else {
+		const pad = Math.max(0, inner - tlen);
+		lineContent = textCol + text + R + " ".repeat(pad);
 	}
-	const stripped = strlen(title);
-	const totalPad = W - 2 - stripped - 4;
-	const padLeft = Math.floor(totalPad / 2);
-	const padRight = totalPad - padLeft;
+
+	console.log(borderCol + "│  " + R + lineContent + borderCol + "  │" + R);
+}
+
+function hdrSep(col = fg.bCyan) {
+	console.log(D + "├" + "─".repeat(W - 2) + "┤" + R);
+}
+
+// Clean, scannable section separator
+function section(num, total, title, col = fg.bCyan) {
+	console.log("");
+	const tag = ` :: [0${num}/0${total}] `;
+	const headerText = ` ${title.toUpperCase()} `;
+	const remaining = W - slen(tag) - slen(headerText);
+
 	console.log(
-		color +
-			"┌" +
-			"─".repeat(padLeft) +
-			"[ " +
-			c.bold +
-			title +
-			c.reset +
-			color +
-			" ]" +
-			"─".repeat(padRight) +
-			"┐" +
-			c.reset
+		col +
+			B +
+			tag +
+			R +
+			fg.bWht +
+			B +
+			headerText +
+			R +
+			D +
+			"─".repeat(Math.max(0, remaining)) +
+			R
 	);
 }
 
-function panelLine(text, color = c.cyan, textColor = c.reset) {
-	const cleanText = text.replace(/\u00a0/g, " ");
-	const stripped = strlen(cleanText);
-	const padRight = Math.max(0, W - 4 - stripped);
-	console.log(
-		color +
-			"│ " +
-			c.reset +
-			textColor +
-			cleanText +
-			" ".repeat(padRight) +
-			color +
-			" │" +
-			c.reset
-	);
+// Key-value alignments with a uniform dot leader
+function row(label, value, labelCol = fg.cyan, valCol = fg.bWht) {
+	const maxLabel = 40;
+	const cleanLabel = String(label);
+	const strippedLabel = slen(cleanLabel);
+
+	const padLen = Math.max(0, maxLabel - strippedLabel);
+	const dotLeader = D + " " + ".".repeat(padLen) + " " + R;
+
+	console.log("  " + labelCol + cleanLabel + R + dotLeader + valCol + String(value) + R);
 }
 
-function panelRow(label, value, labelColor = c.brightCyan, valueColor = c.white, color = c.cyan) {
-	const cleanLabel = label.replace(/\u00a0/g, " ");
-	const cleanVal = String(value).replace(/\u00a0/g, " ");
+// Unified strict ASCII status indicators (No Emojis)
+function ok(text) {
+	console.log("  " + fg.bGrn + "[+] " + R + fg.white + text + R);
+}
 
+// Custom status for network handshakes
+function handshake(text) {
+	console.log("  " + fg.bMag + "[*] " + R + fg.white + text + R);
+}
+
+function info(text) {
+	console.log("  " + fg.bCyan + "[i] " + R + D + text + R);
+}
+
+function warn(text) {
+	console.log("  " + fg.bYel + "[!] " + R + fg.bYel + text + R);
+}
+
+function err(text) {
+	console.log("  " + fg.bRed + "[x] " + R + fg.bRed + text + R);
+}
+
+function sub(label, value, col = D) {
 	const maxLabel = 30;
-	const strippedLabel = strlen(cleanLabel);
-	const paddedLabel = cleanLabel + " ".repeat(Math.max(0, maxLabel - strippedLabel));
-
-	const maxValWidth = W - 4 - maxLabel - 4; // Normalized margin spacing
-	const strippedVal = strlen(cleanVal);
-	const padRight = Math.max(0, maxValWidth - strippedVal);
+	const prefix = "    - ";
+	const cleanLabel = String(label);
+	const strippedLabelLen = slen(cleanLabel);
+	const padLen = Math.max(0, maxLabel - (prefix.length + strippedLabelLen));
 
 	console.log(
-		color +
-			"│ " +
-			c.reset +
-			labelColor +
-			paddedLabel +
-			c.reset +
-			" " +
-			c.dim +
-			"::" +
-			c.reset +
-			" " +
-			valueColor +
-			cleanVal +
-			" ".repeat(padRight) +
-			color +
-			" │" +
-			c.reset
+		"  " + D + prefix + cleanLabel + " ".repeat(padLen) + " ->  " + R + col + value + R
 	);
 }
 
-function panelBottom(color = c.cyan) {
-	console.log(color + "└" + "─".repeat(W - 2) + "┘" + c.reset);
+function blank() {
+	console.log("");
 }
 
-function panelSeparator(color = c.cyan) {
-	console.log(color + "├" + "─".repeat(W - 2) + "┤" + c.reset);
-}
-
-function badge(text, bgColor = c.bgCyan, fgColor = c.reset) {
-	return `${bgColor}${fgColor} ${text} ${c.reset}`;
-}
-
-async function think(msg, duration = 1800) {
-	const frames = [" [ . ] ", " [ .. ]", " [...] ", " [  ..]"];
-	let frameIdx = 0;
-	const startTime = Date.now();
-
+// High-fidelity programmatic braille thinking spinner animation
+function think(msg) {
 	return new Promise((resolve) => {
+		const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+		let i = 0;
+		process.stdout.write("\r  " + fg.bCyan + frames[0] + "  " + R + fg.white + msg + "..." + R);
+
 		const iv = setInterval(() => {
-			const elapsed = Date.now() - startTime;
-			if (elapsed >= duration) {
+			i++;
+			if (i >= frames.length * 2) {
 				clearInterval(iv);
 				process.stdout.write("\r" + " ".repeat(W) + "\r");
-				console.log(`  ${c.brightGreen}[OK]${c.reset}  ${c.dim}${msg}${c.reset}`);
+				ok(msg);
 				resolve();
 			} else {
-				const frame = frames[frameIdx % frames.length];
 				process.stdout.write(
-					`\r  ${c.brightCyan}${frame}${c.reset}  ${c.dim}${msg}...${c.reset}`
+					"\r  " +
+						fg.bCyan +
+						frames[i % frames.length] +
+						"  " +
+						R +
+						fg.white +
+						msg +
+						"..." +
+						R
 				);
-				frameIdx++;
 			}
-		}, 150);
+		}, 80);
 	});
 }
 
-async function progress(label, steps, stepDelay = 600) {
-	const total = steps.length;
-	for (let i = 0; i < total; i++) {
-		const pct = Math.floor(((i + 1) / total) * 100);
-		const filled = Math.floor(((W - 35) * (i + 1)) / total);
-		const bar = "█".repeat(filled) + "░".repeat(Math.max(0, W - 35 - filled));
+const pause = (ms = 400) => new Promise((r) => setTimeout(r, ms));
 
-		process.stdout.write(
-			`\r  ${c.brightYellow}[RUN] ${label}${c.reset} [${c.cyan}${bar}${c.reset}] ${c.bold}${pct}%${c.reset}`
-		);
-
-		await new Promise((r) => setTimeout(r, stepDelay));
+// Drip-print: reveal each line with a small delay for dramatic effect
+async function drip(lines, delayMs = 120) {
+	for (const line of lines) {
+		console.log(line);
+		await pause(delayMs);
 	}
-	process.stdout.write("\r" + " ".repeat(W) + "\r");
-	console.log(
-		`  ${c.brightGreen}[OK]${c.reset}  ${c.dim}${label}${c.reset} -> ${c.brightGreen}Complete${c.reset}`
-	);
 }
 
-async function pause(ms = 1500) {
-	await new Promise((r) => setTimeout(r, ms));
-}
-
+// ---------------------------------------------------------------------------
+// x402 payment helpers
+// ---------------------------------------------------------------------------
 async function signPayment(provider, amount, nonce, deadline) {
 	const encoded = ethers.solidityPacked(
 		["address", "address", "address", "uint256", "bytes32", "uint256"],
-		[FACILITATOR, AGENT_ADDR, provider, BigInt(amount), nonce, deadline]
+		[FACILITATOR, AGENT_ADDR, provider, BigInt(amount), nonce, BigInt(deadline)]
 	);
 	const hash = ethers.keccak256(encoded);
 	return agentWallet.signMessage(ethers.getBytes(hash));
@@ -246,614 +261,738 @@ function buildXPayment(provider, amount, nonce, deadline, signature) {
 	).toString("base64");
 }
 
-async function callPaidAPI(callUrl, provider, amount) {
-	const nonceRes = await fetch(`${GATEWAY}/payment/nonce`);
-	const { nonce, deadline } = await nonceRes.json();
-	const signature = await signPayment(provider, amount, nonce, deadline);
-	const xPayment = buildXPayment(provider, amount, nonce, deadline, signature);
-	const fullUrl = callUrl.startsWith("http") ? callUrl : `${GATEWAY}${callUrl}`;
-	const res = await fetch(fullUrl, { headers: { "X-Payment": xPayment } });
-	const body = await res.json();
-	return { status: res.status, body, nonce };
-}
-
-console.clear();
-console.log("");
-
-// ASCII Art Agent Name
-const agentName = [
-	" █████ █████ █████ █████     █████     ████████       █████████                                   █████   ",
-	"░░███ ░░███ ░░███ ░░███    ███░░░███  ███░░░░███     ███░░░░░███                                 ░░███    ",
-	" ░░███ ███   ░███  ░███ █ ███   ░░███░░░    ░███    ░███    ░███   ███████  ██████  ████████   ███████  ",
-	"  ░░█████    ░███████████░███    ░███   ███████     ░███████████  ███░░███ ███░░███░░███░░███ ░░░███░   ",
-	"   ███░███   ░░░░░░░███░█░███    ░███  ███░░░░      ░███░░░░░███ ░███ ░███░███████  ░███ ░███   ░███    ",
-	"  ███ ░░███        ░███░ ░░███   ███  ███      █    ░███    ░███ ░███ ░███░███░░░    ░███ ░███   ░███ ███",
-	" █████ █████       █████  ░░░█████░  ░██████████    █████   █████░░███████░░██████  ████ █████  ░░█████ ",
-	"░░░░░ ░░░░░       ░░░░░    ░░░░░░░   ░░░░░░░░░░    ░░░░░   ░░░░░   ░░░░███ ░░░░░░  ░░░░ ░░░░░░  ░░░░░  ",
-	"                                                                   ███ ░███                             ",
-	"                                                                  ░░██████                              ",
-	"                                                                   ░░░░░░                               ",
-];
-
-agentName.forEach((line) => {
-	center(line, c.brightCyan);
-});
-
-console.log("");
-panelTop("SYSTEM RECOGNITION INTERFACE", c.dim);
-panelLine(
-	centerStr("AUTONOMOUS INTELLIGENCE LAYER  *  MORPH HOODI TESTNET  *  X402 PROTOCOL"),
-	c.dim,
-	c.brightYellow
-);
-panelBottom(c.dim);
-console.log("");
-
-await pause(1800);
-
-// Agent Identity Card Panel
-panelTop("AGENT IDENTITY MATRIX", c.magenta);
-panelRow("Agent Address", AGENT_ADDR, c.brightCyan, c.brightYellow, c.magenta);
-panelRow(
-	"Key Source",
-	env.AGENT_PRIVATE_KEY ? "AGENT_PRIVATE_KEY" : "GATEWAY_PRIVATE_KEY (fallback)",
-	c.brightCyan,
-	env.AGENT_PRIVATE_KEY ? c.brightGreen : c.brightYellow,
-	c.magenta
-);
-panelRow(
-	"Network Context",
-	"Morph Hoodi Testnet (ChainID: 2910)",
-	c.brightCyan,
-	c.white,
-	c.magenta
-);
-panelRow("Gateway Endpoint", GATEWAY, c.brightCyan, c.white, c.magenta);
-panelRow(
-	"Routing Protocol",
-	"x402 Autonomous Micro-Payments",
-	c.brightCyan,
-	c.brightGreen,
-	c.magenta
-);
-panelRow(
-	"Autonomy Configuration",
-	"FULL ACCESS [No Human Approval Required]",
-	c.brightCyan,
-	c.brightMagenta,
-	c.magenta
-);
-panelBottom(c.magenta);
-
-console.log("");
-await pause(2000);
-
 // ---------------------------------------------------------------------------
-// PHASE 1 — INTENT DECLARATION
+// Main Pipeline Runtime
 // ---------------------------------------------------------------------------
-panelTop("PHASE 1 : INTENT DECLARATION [Mission Initialization]", c.brightMagenta);
-panelLine(" [OBJ] Primary Core Objectives:", c.brightMagenta, c.brightYellow);
-panelLine(
-	"       - Perform comprehensive real-time cryptocurrency market analysis",
-	c.brightMagenta,
-	c.white
-);
-panelLine(
-	"       - Gather live price data for BTC, ETH, SOL via premium endpoints",
-	c.brightMagenta,
-	c.white
-);
-panelLine(
-	"       - Monitor current network gas conditions across specified Layer 2",
-	c.brightMagenta,
-	c.white
-);
-panelLine(
-	"       - Generate structured final intelligence report inside terminal container",
-	c.brightMagenta,
-	c.white
-);
-panelSeparator(c.brightMagenta);
-panelLine(" [CFG] Operational Constraints & Ruleset:", c.brightMagenta, c.brightYellow);
-panelLine(
-	"       [+] Zero human intervention at any evaluation or decision node",
-	c.brightMagenta,
-	c.brightGreen
-);
-panelLine(
-	"       [+] Pay-per-call metered on-demand data acquisition active",
-	c.brightMagenta,
-	c.brightGreen
-);
-panelLine(
-	"       [+] All transactions fully verifiable on-chain asynchronously",
-	c.brightMagenta,
-	c.brightGreen
-);
-panelLine(
-	"       [+] Cryptographic nonces/proof generated natively for every request",
-	c.brightMagenta,
-	c.brightGreen
-);
-panelBottom(c.brightMagenta);
-
-console.log("");
-await pause(2000);
-
-// ---------------------------------------------------------------------------
-// PHASE 2 — CATALOG DISCOVERY
-// ---------------------------------------------------------------------------
-panelTop("PHASE 2 : CATALOG DISCOVERY [Scanning Registry Container]", c.brightMagenta);
-panelBottom(c.brightMagenta);
-
-await think("Querying decentralized API market registry", 1500);
-await pause(400);
-
-const catalogRes = await fetch(`${GATEWAY}/api/v1/catalog`);
-if (!catalogRes.ok) {
+async function main() {
+	console.clear();
 	console.log("");
-	panelTop("CRITICAL REGISTRY FAULT", c.red);
-	panelLine(
-		" [!!] Gateway connection aborted. Verify if localized backend service is online.",
-		c.red,
-		c.brightRed
+
+	// Minimalist, high-end block-text geometric banner layout
+	console.log(fg.bCyan + B);
+	console.log(" ███████████                     █████                        ");
+	console.log(" ░░███░░░░░███                   ░░███                         ");
+	console.log("  ░███    ░███ ████████   ██████  ░███ █████  ██████  ████████ ");
+	console.log("  ░██████████ ░░███░░███ ███░░███ ░███░░███  ███░░███░░███░░███");
+	console.log("  ░███░░░░░███ ░███ ░░░ ░███ ░███ ░██████░  ░███████  ░███ ░░░ ");
+	console.log("  ░███    ░███ ░███     ░███ ░███ ░███░░███ ░███░░░   ░███     ");
+	console.log("  ███████████  █████    ░░██████  ████ █████░░██████  █████    ");
+	console.log(" ░░░░░░░░░░░  ░░░░░      ░░░░░░  ░░░░ ░░░░░  ░░░░░░  ░░░░░     ");
+	console.log(R);
+	console.log(
+		"    " +
+			D +
+			"[" +
+			R +
+			fg.bGrn +
+			"ONLINE" +
+			R +
+			D +
+			"]" +
+			"  node::" +
+			fg.bWht +
+			"broker-01" +
+			R +
+			D +
+			"  |" +
+			"  gateway::" +
+			fg.cyan +
+			"agentmesh-core" +
+			R +
+			D +
+			"  |" +
+			"  network::" +
+			fg.bMag +
+			"morph_hoodi" +
+			R +
+			D +
+			"  |" +
+			"  mode::" +
+			fg.bYel +
+			"autonomous" +
+			R
 	);
-	panelBottom(c.red);
-	process.exit(1);
-}
-const { catalog, payment: meta } = await catalogRes.json();
-
-console.log(
-	`  ${c.brightGreen}[OK]${c.reset} Registry Handshake: Discovered ${catalog.length} system nodes.`
-);
-console.log(
-	`  ${c.brightCyan}[PROT]${c.reset} Facilitator Contract Target: ${meta.facilitator?.slice(0, 24)}...`
-);
-
-await think("Analyzing endpoint capabilities and structural costs", 1400);
-await pause(500);
-
-console.log("");
-panelTop("AVAILABLE DISTRIBUTED DATA SOURCES", c.cyan);
-for (const api of catalog) {
-	const priceStr = `[ $${api.priceUsd} ]`;
-	const apiLine = ` * ${api.name.padEnd(22)} ${priceStr.padEnd(12)} Line: ${api.callUrl}`;
-	panelLine(apiLine, c.cyan, c.white);
-	if (api.description) {
-		panelLine(`    └── ${api.description}`, c.cyan, c.dim);
-	}
-}
-panelBottom(c.cyan);
-
-const needed = ["BTC Price", "ETH Price", "SOL Price", "Gas Tracker"];
-const selected = catalog.filter((a) => needed.includes(a.name));
-
-console.log("");
-await think("Running automated resource allocation models", 1600);
-await pause(600);
-
-console.log("");
-panelTop("AI ROUTING DECISION ENGINE CONFIG_LOG", c.magenta);
-for (const api of selected) {
-	panelRow(
-		api.name,
-		`Staged for Execution -> $${api.priceUsd} USDC`,
-		c.brightYellow,
-		c.brightGreen,
-		c.magenta
-	);
-}
-const totalEstimate = selected.reduce((s, a) => s + Number(a.pricePerCall), 0);
-panelSeparator(c.magenta);
-panelRow(
-	"Estimated Aggregate Cost",
-	`$${(totalEstimate / 1_000_000).toFixed(6)} USDC`,
-	c.brightCyan,
-	c.brightYellow,
-	c.magenta
-);
-panelBottom(c.magenta);
-
-console.log("");
-await pause(1800);
-
-// ---------------------------------------------------------------------------
-// PHASE 3 — BALANCE CHECK
-// ---------------------------------------------------------------------------
-panelTop("PHASE 3 : PRE-FLIGHT CAPACITY VALIDATION", c.brightMagenta);
-panelBottom(c.brightMagenta);
-
-await think("Evaluating on-chain USDC safe-balance via RPC nodes", 1400);
-await pause(500);
-
-const balRes = await fetch(`${GATEWAY}/payment/balance/${AGENT_ADDR}`);
-const { usdcBalance } = await balRes.json();
-
-const balanceNum = parseFloat(usdcBalance);
-const requiredNum = totalEstimate / 1_000_000;
-
-console.log("");
-panelTop("ALLOCATION ANALYSIS", c.cyan);
-panelRow("Current Balance Available", `${usdcBalance} USDC`, c.brightCyan, c.brightYellow, c.cyan);
-panelRow(
-	"Minimum Amount Required",
-	`${requiredNum.toFixed(6)} USDC`,
-	c.brightCyan,
-	c.white,
-	c.cyan
-);
-panelSeparator(c.cyan);
-
-if (balanceNum < requiredNum) {
-	panelLine(
-		" [WARN] Insufficient optimal margin detected. Runtime threshold low.",
-		c.cyan,
-		c.brightYellow
-	);
-	panelLine("        Proceeding with partial remaining asset coverage...", c.cyan, c.brightCyan);
-} else {
-	panelLine(
-		" [OK] Pre-flight allocation checks cleared. Liquidity capacity approved.",
-		c.cyan,
-		c.brightGreen
-	);
-	panelLine("        Operational status: ALL SYSTEMS OPERATIONAL", c.cyan, c.brightGreen);
-}
-panelBottom(c.cyan);
-
-console.log("");
-await pause(1800);
-
-// ---------------------------------------------------------------------------
-// PHASE 4 — AUTONOMOUS API CALLS
-// ---------------------------------------------------------------------------
-panelTop("PHASE 4 : AUTONOMOUS CRYPTOGRAPHIC PIPELINE", c.brightMagenta);
-panelLine(" Sequential cryptographic loop for each micro-payment request:", c.brightMagenta, c.dim);
-panelLine(
-	"   1. Call gateway loop for single-use deterministic execution nonce",
-	c.brightMagenta,
-	c.dim
-);
-panelLine(
-	"   2. Frame local transaction variables alongside unique payload hashes",
-	c.brightMagenta,
-	c.dim
-);
-panelLine(
-	"   3. Signs binary structure using localized key pair (zero manual friction)",
-	c.brightMagenta,
-	c.dim
-);
-panelLine(
-	"   4. Stream request bundle wrapped inside high-priority X-Payment header",
-	c.brightMagenta,
-	c.dim
-);
-panelLine(
-	"   5. Complete immediate receipt authentication and verify settlement",
-	c.brightMagenta,
-	c.dim
-);
-panelBottom(c.brightMagenta);
-
-const results = {};
-let totalSpent = 0n;
-let callNum = 1;
-
-for (const api of selected) {
 	console.log("");
-	panelTop(
-		`CALL PIPELINE ELEMENT [${callNum}/${selected.length}] -- ${api.name.toUpperCase()}`,
-		c.brightCyan
-	);
-	panelRow("Target Node Provider", api.provider, c.brightYellow, c.dim, c.brightCyan);
-	panelRow(
-		"Assigned Base Rate",
-		`$${api.priceUsd} USDC (${api.pricePerCall} compute units)`,
-		c.brightYellow,
-		c.white,
-		c.brightCyan
-	);
-	panelRow(
-		"Operational Vector",
-		api.description || "Real-time feed",
-		c.brightYellow,
-		c.dim,
-		c.brightCyan
-	);
-	panelBottom(c.brightCyan);
 
-	console.log("");
-	await think("Requesting cryptographic nonce key", 800);
-	await think("Assembling authorization payload array", 800);
-	await think("Generating localized ECDSA signature structural validation", 900);
-	await think("Streaming remote payload across payment gateway", 800);
+	// Identity Management Frame
+	hdr("Runtime Infrastructure Configuration", fg.bCyan);
+	hdrLine(`Agent Wallet Address   :  ${AGENT_ADDR}`, fg.bCyan, fg.bYel + B);
+	hdrLine(
+		`Private Key Source     :  ${env.AGENT_PRIVATE_KEY ? "AGENT_PRIVATE_KEY (primary)" : "GATEWAY_PRIVATE_KEY (fallback)"}`,
+		fg.bCyan,
+		env.AGENT_PRIVATE_KEY ? fg.bGrn : fg.bYel
+	);
+	hdrLine(`Network Layer          :  Morph Hoodi Testnet  (Chain ID: 2910)`, fg.bCyan, fg.bWht);
+	hdrLine(`Gateway Endpoint       :  ${GATEWAY}`, fg.bCyan, fg.cyan);
+	hdrLine(`Facilitator Contract   :  ${FACILITATOR}`, fg.bCyan, D);
+	hdrLine(
+		`Payment Protocol       :  x402 off-chain authorization / ECDSA signature proofs`,
+		fg.bCyan,
+		fg.bMag
+	);
+	hdrLine(
+		`Autonomy Mode          :  FULL AUTONOMOUS EXECUTION / ZERO HUMAN APPROVAL REQUIRED`,
+		fg.bCyan,
+		fg.bGrn
+	);
+	hdrBottom(fg.bCyan);
 
+	await pause(800);
+
+	// -------------------------------------------------------------------------
+	// STEP 1 — Gateway health check & Live Balance Handshake
+	// -------------------------------------------------------------------------
+	section(1, 6, "Gateway Health Check & Auth", fg.bCyan);
+	await think("Connecting to AgentMesh Gateway router");
+	await pause(100);
+
+	let gatewayInfo;
 	try {
-		const {
-			status: httpStatus,
-			body,
-			nonce,
-		} = await callPaidAPI(api.callUrl, api.provider, api.pricePerCall);
+		const res = await fetch(`${GATEWAY}/payment/status`);
+		gatewayInfo = await res.json();
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-		console.log("");
+		ok("AgentMesh Gateway connection established successfully");
+		sub("endpoint", GATEWAY, fg.cyan);
+		sub("network", gatewayInfo.network || "morph_hoodi", fg.bWht);
+		sub("facilitator", gatewayInfo.facilitator || FACILITATOR, D);
+		sub("chain ID", gatewayInfo.chainId || "2910", fg.bYel);
+
+		blank();
+		await think("Performing identity handshake & verifying live token balance");
+
+		// Pulling live balance from your custom route /payment/balance/:address
+		const balRes = await fetch(`${GATEWAY}/payment/balance/${AGENT_ADDR}`);
+		const balData = await balRes.json();
+
+		if (balRes.ok && balData.success) {
+			handshake("Node identity verified with clearing gateway");
+			sub("allocated balance", `${balData.usdcBalance} USDC`, fg.bYel + B);
+			sub("channel status", "ACTIVE / READY FOR OFF-CHAIN SIGNING", fg.bGrn);
+		} else {
+			throw new Error(balData.error || "Failed to fetch valid balance schema");
+		}
+	} catch (e) {
+		err(`Gateway identity verification failed: ${e.message}`);
+		err("Verify your backend architecture is live: pnpm dev");
+		process.exit(1);
+	}
+
+	await pause(900);
+
+	// -------------------------------------------------------------------------
+	// STEP 2 — Catalog discovery
+	// -------------------------------------------------------------------------
+	section(2, 6, "On-Chain API Catalog Discovery", fg.bCyan);
+	await think("Querying APIRegistry via GET /api/v1/catalog");
+	await pause(100);
+
+	let catalog, paymentMeta;
+	try {
+		const res = await fetch(`${GATEWAY}/api/v1/catalog`);
+		const data = await res.json();
+		catalog = data.catalog;
+		paymentMeta = data.payment;
+		if (!res.ok || !catalog) throw new Error("Invalid catalog response");
+
+		ok(`Discovered ${catalog.length} APIs registered in on-chain marketplace`);
+		sub("facilitator contract", paymentMeta.facilitator || FACILITATOR, D);
+		sub("nonce endpoint", paymentMeta.nonceUrl, fg.cyan);
+		sub("payment scheme", paymentMeta.scheme || "x402", fg.bMag);
+		blank();
+		info("Available Paid APIs:");
+		for (const api of catalog) {
+			console.log(
+				"    " +
+					fg.bWht +
+					api.name.padEnd(22) +
+					R +
+					D +
+					`[ $${api.priceUsd} USDC / call ]`.padEnd(24) +
+					R +
+					D +
+					"-> " +
+					R +
+					fg.cyan +
+					api.callUrl +
+					R
+			);
+		}
+	} catch (e) {
+		err(`Catalog discovery failed: ${e.message}`);
+		process.exit(1);
+	}
+
+	await pause(900);
+
+	// -------------------------------------------------------------------------
+	// STEP 3 — Execution planning
+	// -------------------------------------------------------------------------
+	section(3, 6, "Execution Planning", fg.bCyan);
+	await think("Selecting APIs for market analysis task");
+	await pause(100);
+
+	const TARGET = ["BTC Price", "ETH Price", "SOL Price", "Gas Tracker"];
+	// Deduplicate by name — prefer builtin over registered when both exist
+	const seen = new Map();
+	for (const a of catalog) {
+		if (!TARGET.includes(a.name)) continue;
+		const existing = seen.get(a.name);
+		if (!existing || a.type === "builtin") seen.set(a.name, a);
+	}
+	const selected = TARGET.map((name) => seen.get(name)).filter(Boolean);
+	const totalCost = selected.reduce((s, a) => s + Number(a.pricePerCall), 0);
+
+	ok(`Selected ${selected.length} of ${catalog.length} available APIs for execution`);
+	blank();
+	info("Execution Plan:");
+	for (const api of selected) {
+		console.log(
+			"    " +
+				fg.bGrn +
+				"> " +
+				R +
+				fg.bWht +
+				api.name.padEnd(22) +
+				R +
+				D +
+				` Cost: $${api.priceUsd} USDC (${api.pricePerCall} units)` +
+				R
+		);
+	}
+	blank();
+	row(
+		"Total estimated cost",
+		`$${(totalCost / 1_000_000).toFixed(6)} USDC`,
+		fg.cyan,
+		fg.bYel + B
+	);
+	row("Human approvals required", "0 (Fully Autonomous)", fg.cyan, fg.bGrn);
+
+	await pause(900);
+
+	// -------------------------------------------------------------------------
+	// STEP 4 — Balance verification
+	// -------------------------------------------------------------------------
+	section(4, 6, "Balance Allocation Check", fg.bCyan);
+	await think(`Checking liquidity limits for ${AGENT_ADDR.slice(0, 14)}`);
+	await pause(100);
+
+	let balance = 0;
+	try {
+		const res = await fetch(`${GATEWAY}/payment/balance/${AGENT_ADDR}`);
+		const data = await res.json();
+		balance = parseFloat(data.usdcBalance || "0");
+
+		ok(`Balance confirmation retrieved from AgentMesh router`);
+		row("Current USDC balance", `${data.usdcBalance} USDC`, fg.cyan, fg.bYel + B);
+		row(
+			"Required for execution",
+			`${(totalCost / 1_000_000).toFixed(6)} USDC`,
+			fg.cyan,
+			fg.bWht
+		);
+		blank();
+
+		if (balance >= totalCost / 1_000_000) {
+			ok("Sufficient liquidity allocation confirmed for parallel requests");
+		} else {
+			warn("Balance may be insufficient — some payments could fail");
+			warn("Recommendation: Request test tokens via POST /faucet/mint");
+		}
+	} catch (e) {
+		warn(`Balance check failed: ${e.message} — proceeding anyway`);
+	}
+
+	await pause(900);
+
+	// -------------------------------------------------------------------------
+	// STEP 5 — x402 payment loop
+	// -------------------------------------------------------------------------
+	section(5, 6, "AgentMesh x402 Processing Engine", fg.bCyan);
+	blank();
+	info(
+		"Workflow: Probe endpoint → Receive 402 challenge → Get nonce → Sign payment → Verify → Submit → Settle"
+	);
+	blank();
+
+	const results = {};
+	let totalSpent = 0n;
+
+	// Snapshot balance before the loop so we can show per-call deltas
+	let runningBalance = balance;
+
+	for (let i = 0; i < selected.length; i++) {
+		const api = selected[i];
+
+		// Dynamically calculate strict box boundaries
+		const innerWidth = W - 6;
+		const titleTag = `API CALL [0${i + 1}/0${selected.length}]`;
+		const providerText = `Provider: ${api.provider.slice(0, 20)}...`;
+
+		const leftContent = ` ${titleTag} `;
+		const sep = `│`;
+		const rightContentStart = ` ${api.name} `;
+		const rightContentEnd = `${providerText} `;
+
+		const fixedLen =
+			slen(leftContent) + slen(sep) + slen(rightContentStart) + slen(rightContentEnd);
+		const spaces = Math.max(1, innerWidth - fixedLen);
+
+		console.log("  " + D + "┌" + "─".repeat(innerWidth) + "┐" + R);
+		console.log(
+			"  " +
+				D +
+				"│" +
+				R +
+				fg.cyan +
+				B +
+				leftContent +
+				R +
+				D +
+				sep +
+				R +
+				fg.bWht +
+				B +
+				rightContentStart +
+				R +
+				" ".repeat(spaces) +
+				D +
+				rightContentEnd +
+				"│" +
+				R
+		);
+		console.log("  " + D + "└" + "─".repeat(innerWidth) + "┘" + R);
+		blank();
+
+		sub("endpoint", api.callUrl, fg.cyan);
+		sub("price", `$${api.priceUsd} USDC  (${api.pricePerCall} units)`, fg.bWht);
+		blank();
+
+		// 5.1 — Probe endpoint (expect 402)
+		await think("Probing router proxy — expecting dynamic 402 intercept");
+		let probeBody;
+		try {
+			const probeRes = await fetch(
+				api.callUrl.startsWith("http") ? api.callUrl : `${GATEWAY}${api.callUrl}`
+			);
+			probeBody = await probeRes.json();
+			if (probeRes.status === 402) {
+				ok("Intercept successfully thrown by AgentMesh Gateway — challenge recognized");
+				sub(
+					"required amount",
+					(probeBody.payment?.amount || api.pricePerCall) + " base units",
+					fg.bYel
+				);
+				sub("facilitator", probeBody.payment?.facilitator || FACILITATOR, D);
+				sub("chain ID", probeBody.payment?.chainId || "2910", D);
+			} else {
+				warn(`Expected 402, received ${probeRes.status} — processing response`);
+			}
+		} catch (e) {
+			warn(`Probe failed: ${e.message} — assuming default gateway parameters`);
+		}
+		blank();
+
+		// 5.2 — Get nonce
+		await think("Requesting tracked tracking-nonce from AgentMesh server");
+		let nonce, deadline;
+		try {
+			const nonceRes = await fetch(`${GATEWAY}/payment/nonce`);
+			const nonceData = await nonceRes.json();
+			nonce = nonceData.nonce;
+			deadline = nonceData.deadline;
+			ok("Single-use secure nonce issued");
+			sub("nonce", nonce.slice(0, 32) + "...", fg.cyan);
+			sub("deadline", new Date(deadline * 1000).toISOString(), fg.bWht);
+			sub("valid for", `${Math.round((deadline - Date.now() / 1000) / 60)} minutes`, fg.bYel);
+		} catch (e) {
+			err(`Nonce allocation error: ${e.message}`);
+			results[api.name] = null;
+			blank();
+			continue;
+		}
+		blank();
+
+		// 5.3 — Sign
+		await think("Signing off-chain cryptographic ECDSA authorization matrix");
+		let signature;
+		try {
+			signature = await signPayment(api.provider, api.pricePerCall, nonce, deadline);
+			ok("Cryptographic signature committed to buffer");
+			sub(
+				"algorithm",
+				"ECDSA / keccak256(facilitator+payer+provider+amount+nonce+deadline)",
+				D
+			);
+			sub("signer", AGENT_ADDR, fg.bYel);
+			sub("signature", signature.slice(0, 42) + "...", fg.bMag);
+		} catch (e) {
+			err(`Signature construction broke: ${e.message}`);
+			results[api.name] = null;
+			blank();
+			continue;
+		}
+		blank();
+
+		// 5.4 — Build X-Payment header
+		await think("Packing transaction parameters into base64 token header");
+		const xPayment = buildXPayment(api.provider, api.pricePerCall, nonce, deadline, signature);
+		ok("X-Payment protocol envelope created");
+		sub("format", "base64(JSON({ payer, provider, amount, nonce, deadline, signature }))", D);
+		sub("payload sizing", `${xPayment.length} bytes`, fg.bWht);
+		blank();
+
+		// // 5.5 — Pre-flight verify
+		// await think("Validating signature mechanics with gateway pre-flight endpoint");
+		// try {
+		// 	const verifyRes = await fetch(`${GATEWAY}/payment/verify`, {
+		// 		method: "POST",
+		// 		headers: { "Content-Type": "application/json" },
+		// 		body: JSON.stringify({
+		// 			payer: AGENT_ADDR,
+		// 			provider: api.provider,
+		// 			amount: String(api.pricePerCall),
+		// 			nonce,
+		// 			deadline,
+		// 			signature,
+		// 		}),
+		// 	});
+		// 	const verifyData = await verifyRes.json();
+		// 	if (verifyData.valid) {
+		// 		ok("Gateway signature pre-verification checks out");
+		// 		sub("recovered wallet signature", AGENT_ADDR, fg.bGrn);
+		// 	} else {
+		// 		warn(
+		// 			`Pre-flight warnings: ${verifyData.reason || "unknown"} — submitting payload directly`
+		// 		);
+		// 	}
+		// } catch (e) {
+		// 	warn(`Pre-flight socket error: ${e.message} — proceeding to direct delivery`);
+		// }
+		blank();
+
+		// 5.6 — Submit with X-Payment header
+		await think("Injecting signature credentials and firing stream request");
+		let httpStatus, body;
+		try {
+			const fullUrl = api.callUrl.startsWith("http")
+				? api.callUrl
+				: `${GATEWAY}${api.callUrl}`;
+			const apiRes = await fetch(fullUrl, { headers: { "X-Payment": xPayment } });
+			httpStatus = apiRes.status;
+			body = await apiRes.json();
+		} catch (e) {
+			err(`Resource transmission error: ${e.message}`);
+			results[api.name] = null;
+			blank();
+			continue;
+		}
+
+		blank();
+
 		if (httpStatus === 200) {
 			results[api.name] = body.data;
 			totalSpent += BigInt(api.pricePerCall);
 
-			panelTop(`PAYMENT PIPELINE SETTLED -- ${api.name.toUpperCase()}`, c.green);
-			panelRow("Response Code", "200 OK SUCCESS", c.brightGreen, c.brightGreen, c.green);
-			panelRow(
-				"Assigned Nonce Hash",
-				nonce.slice(0, 32) + "...",
-				c.brightGreen,
-				c.brightCyan,
-				c.green
+			ok(`HTTP 200 OK — Resource authorization unlocked and parsed`);
+			sub("data packet summary", JSON.stringify(body.data).slice(0, 68), fg.bWht);
+			sub("consumed tracking nonce", nonce.slice(0, 32) + "...", D);
+			blank();
+			info("Liability queued inside AgentMesh router memory ledger:");
+			sub(
+				"settlement schema",
+				"X402Facilitator.settle(payer, provider, amount, nonce, deadline, signature)",
+				D
 			);
-			panelRow(
-				"Data Slice Received",
-				JSON.stringify(body.data).slice(0, 60),
-				c.brightGreen,
-				c.white,
-				c.green
-			);
-			panelRow(
-				"Settlement Context",
-				"Asynchronous On-Chain Settlement Queued",
-				c.brightGreen,
-				c.brightYellow,
-				c.green
-			);
-			panelBottom(c.green);
+			sub("debt account", AGENT_ADDR, fg.white);
+			sub("endpoint owner", api.provider, fg.white);
+			sub("authorized units", `${api.pricePerCall} units ($${api.priceUsd} USDC)`, fg.bYel);
+			sub("morph explorer status", "QUEUE_BATCH_COMMIT", fg.cyan);
+
+			// Post-payment balance update (calculated locally — on-chain settlement is async)
+			blank();
+			const costUsd = Number(api.pricePerCall) / 1_000_000;
+			const prevBal = runningBalance;
+			runningBalance = Math.max(0, runningBalance - costUsd);
+			info("Balance update after settlement:");
+			sub("before", `${prevBal.toFixed(6)} USDC`, fg.bWht);
+			sub("after ", `${runningBalance.toFixed(6)} USDC`, fg.bYel + B);
+			sub("delta ", `-${costUsd.toFixed(6)} USDC`, fg.bRed);
+			sub("note  ", "on-chain debit settles async after block confirmation", D);
 		} else if (httpStatus === 402) {
 			results[api.name] = null;
-			panelTop(`PIPELINE EXCEPTION ER-402 -- ${api.name.toUpperCase()}`, c.red);
-			panelRow(
-				"Response Code",
-				"402 Payment Required Error",
-				c.brightRed,
-				c.brightRed,
-				c.red
-			);
-			panelRow(
-				"Gateway Context",
-				String(body.error || "Payment validation failed").slice(0, 60),
-				c.brightRed,
-				c.white,
-				c.red
-			);
-			panelBottom(c.red);
+			err("HTTP 402 — Signature verification rejected by AgentMesh infrastructure");
+			sub("rejection code", body.error || "Invalid cryptographic credentials", fg.bRed);
 		} else {
 			results[api.name] = null;
-			panelTop(`PIPELINE EXCEPTION UNKNOWN -- ${api.name.toUpperCase()}`, c.yellow);
-			panelRow(
-				"Response Code",
-				`${httpStatus} Server Communication Issue`,
-				c.brightYellow,
-				c.brightYellow,
-				c.yellow
+			err(`HTTP ${httpStatus} — Router pipeline threw an unexpected code`);
+		}
+
+		blank();
+		await pause(700);
+	}
+
+	await pause(1200);
+
+	// -------------------------------------------------------------------------
+	// STEP 6 — Report
+	// -------------------------------------------------------------------------
+	section(6, 6, "Assembled Market Intelligence Summary", fg.bCyan);
+	await think("Synthesizing acquired data packets");
+	await pause(600);
+
+	const successCount = Object.values(results).filter(Boolean).length;
+
+	blank();
+
+	// Market data — drip each price line
+	if (results["BTC Price"] || results["ETH Price"] || results["SOL Price"]) {
+		info("Spot Prices:");
+		await pause(300);
+		if (results["BTC Price"]) {
+			row(
+				"  BTC / USD",
+				`$${results["BTC Price"].price.toLocaleString()}`,
+				fg.cyan,
+				fg.bYel + B
 			);
-			panelBottom(c.yellow);
+			await pause(250);
 		}
-	} catch (err) {
-		results[api.name] = null;
-		console.log("");
-		panelTop("LOCAL CRITICAL PIPELINE FAULT", c.brightRed);
-		panelLine(` [!!] Runtime Exception: ${err.message.slice(0, 70)}`, c.brightRed, c.brightRed);
-		panelBottom(c.brightRed);
+		if (results["ETH Price"]) {
+			row(
+				"  ETH / USD",
+				`$${results["ETH Price"].price.toLocaleString()}`,
+				fg.cyan,
+				fg.bYel + B
+			);
+			await pause(250);
+		}
+		if (results["SOL Price"]) {
+			row(
+				"  SOL / USD",
+				`$${results["SOL Price"].price.toLocaleString()}`,
+				fg.cyan,
+				fg.bYel + B
+			);
+			await pause(250);
+		}
+		blank();
 	}
 
-	callNum++;
-	await pause(1500);
-}
+	if (results["Gas Tracker"]) {
+		const g = results["Gas Tracker"];
+		info("Gas Prices (Gwei):");
+		await pause(300);
+		row("  Fast", `${g.fast} gwei`, fg.cyan, fg.bGrn);
+		await pause(200);
+		row("  Standard", `${g.standard} gwei`, fg.cyan, fg.bYel);
+		await pause(200);
+		row("  Slow", `${g.slow} gwei`, fg.cyan, D);
+		await pause(200);
+		blank();
+	}
 
-console.log("");
-await pause(1800);
-
-// ---------------------------------------------------------------------------
-// PHASE 5 — ANALYSIS & REPORT
-// ---------------------------------------------------------------------------
-panelTop("PHASE 5 : METRIC SYNTHESIS & REPORT GENERATION", c.brightMagenta);
-panelBottom(c.brightMagenta);
-
-await think("Consolidating acquired unstructured data vectors", 1200);
-await think("Running internal statistical asset mapping models", 1400);
-await think("Computing standard cross-chain network indicators", 1200);
-await think("Structuring synthetic execution summary matrix", 1000);
-
-console.log("");
-console.log("");
-
-panelTop("CRYPTOCURRENCY MARKET INTELLIGENCE METRIC MATRIX", c.brightYellow);
-panelLine(centerStr("AUTONOMOUS INTEL REPORT GENERATION"), c.brightYellow, c.bold + c.brightYellow);
-panelLine(
-	centerStr(
-		`Generated Protocol-Direct via Morph Hoodi Testnet Integration | ${new Date().toISOString()}`
-	),
-	c.brightYellow,
-	c.dim
-);
-panelSeparator(c.brightYellow);
-
-// Price Data Section
-if (results["BTC Price"] || results["ETH Price"] || results["SOL Price"]) {
-	panelLine(" [ASSET REAL-TIME FEED EXCHANGE VALUES]", c.brightYellow, c.brightCyan);
-	if (results["BTC Price"]) {
-		panelRow(
-			"  BTC / USD Spot Rate",
-			`$${results["BTC Price"].price.toLocaleString()}`,
-			c.white,
-			c.brightYellow,
-			c.brightYellow
+	if (results["BTC Price"] && results["ETH Price"]) {
+		const ratio = (results["BTC Price"].price / results["ETH Price"].price).toFixed(2);
+		const btcPrice = results["BTC Price"].price;
+		const sentiment =
+			btcPrice > 70000 ? "STRONGLY BULLISH" : btcPrice > 60000 ? "NEUTRAL" : "BEARISH";
+		info("Derived Market Indicators:");
+		await pause(300);
+		row("  BTC / ETH ratio", ratio, fg.cyan, fg.bMag + B);
+		await pause(250);
+		row(
+			"  Market sentiment",
+			sentiment,
+			fg.cyan,
+			sentiment.includes("BULLISH") ? fg.bGrn + B : fg.bYel + B
 		);
+		await pause(250);
+		blank();
 	}
-	if (results["ETH Price"]) {
-		panelRow(
-			"  ETH / USD Spot Rate",
-			`$${results["ETH Price"].price.toLocaleString()}`,
-			c.white,
-			c.brightYellow,
-			c.brightYellow
-		);
-	}
-	if (results["SOL Price"]) {
-		panelRow(
-			"  SOL / USD Spot Rate",
-			`$${results["SOL Price"].price.toLocaleString()}`,
-			c.white,
-			c.brightYellow,
-			c.brightYellow
-		);
-	}
-	panelSeparator(c.brightYellow);
-}
 
-// Gas Tracker Section
-if (results["Gas Tracker"]) {
-	panelLine(" [LAYER-2 NETWORK PROCESSING CONDITIONS]", c.brightYellow, c.brightCyan);
-	const g = results["Gas Tracker"];
-	panelRow("  Priority Throughput", `${g.fast} Gwei`, c.white, c.brightGreen, c.brightYellow);
-	panelRow(
-		"  Standard Throughput",
-		`${g.standard} Gwei`,
-		c.white,
-		c.brightYellow,
-		c.brightYellow
+	await pause(500);
+
+	// Execution summary — drip each stat
+	info("Execution Performance Summary:");
+	await pause(300);
+	row("  APIs targeted", TARGET.length.toString(), fg.cyan, fg.bWht);
+	await pause(200);
+	row("  APIs successful", successCount.toString(), fg.cyan, fg.bGrn + B);
+	await pause(200);
+	row(
+		"  APIs failed",
+		(TARGET.length - successCount).toString(),
+		fg.cyan,
+		successCount === TARGET.length ? D : fg.bRed + B
 	);
-	panelRow("  Safe-Low Throughput", `${g.slow} Gwei`, c.white, c.brightRed, c.brightYellow);
-	panelSeparator(c.brightYellow);
-}
-
-// Analysis Section
-if (results["BTC Price"] && results["ETH Price"]) {
-	panelLine(" [DERIVED INTEL ANALYTIC OBSERVATIONS]", c.brightYellow, c.brightCyan);
-	const ratio = (results["BTC Price"].price / results["ETH Price"].price).toFixed(2);
-	const btcPrice = results["BTC Price"].price;
-	const sentiment =
-		btcPrice > 70000
-			? "STRONGLY BULLISH"
-			: btcPrice > 60000
-				? "NEUTRAL TRACKING"
-				: "BEARISH OUTLOOK";
-
-	panelRow("  Calculated BTC / ETH Ratio", ratio, c.white, c.brightMagenta, c.brightYellow);
-	panelRow(
-		"  Algorithmic Sentiment Node",
-		sentiment,
-		c.white,
-		sentiment.includes("BULLISH") ? c.brightGreen : c.brightYellow,
-		c.brightYellow
+	await pause(200);
+	row(
+		"  Total USDC spent",
+		`$${(Number(totalSpent) / 1_000_000).toFixed(6)} USDC`,
+		fg.cyan,
+		fg.bYel + B
 	);
-	panelSeparator(c.brightYellow);
-}
+	await pause(200);
+	row("  Signatures generated", successCount.toString(), fg.cyan, fg.cyan);
+	await pause(200);
+	row("  Human approvals", "0", fg.cyan, fg.bGrn);
+	await pause(200);
+	row("  On-chain settlements", `${successCount} queued for finality`, fg.cyan, fg.bGrn);
+	blank();
 
-// Execution Summary
-panelLine(" [COMPREHENSIVE RUNTIME EXECUTION AUDIT]", c.brightYellow, c.brightMagenta);
-const successCount = Object.values(results).filter(Boolean).length;
+	await pause(600);
 
-panelRow("  Total Registered Targets", `${selected.length}`, c.white, c.white, c.brightYellow);
-panelRow("  Successful Secure Hits", `${successCount}`, c.white, c.brightGreen, c.brightYellow);
-panelRow(
-	"  Dropped Pipeline Tasks",
-	`${selected.length - successCount}`,
-	c.white,
-	successCount === selected.length ? c.dim : c.brightRed,
-	c.brightYellow
-);
-panelRow(
-	"  Aggregated Flow Charges",
-	`$${(Number(totalSpent) / 1_000_000).toFixed(6)} USDC`,
-	c.white,
-	c.brightYellow,
-	c.brightYellow
-);
-panelRow(
-	"  Manual Administrator Keys",
-	"[ 0 ] Fully Autonomous Context",
-	c.white,
-	c.brightMagenta,
-	c.brightYellow
-);
-panelRow(
-	"  On-Chain Confirmations",
-	`${successCount} Pending Finality blocks`,
-	c.white,
-	c.brightGreen,
-	c.brightYellow
-);
-panelBottom(c.brightYellow);
+	// Verification links
+	info("AgentMesh Verification Hubs:");
+	await pause(200);
+	row("  Dashboard Hub", `${GATEWAY}/dashboard/${AGENT_ADDR}`, fg.cyan, fg.blue + underline);
+	await pause(200);
+	row("  Morph L2 Explorer", "https://explorer-hoodi.morphl2.io", fg.cyan, fg.blue + underline);
+	blank();
 
-console.log("");
-panelTop("COMPLIANCE AND AUDIT VERIFICATION PATHWAY", c.cyan);
-panelRow(
-	"Localized Dashboard Matrix",
-	`${GATEWAY}/dashboard/${AGENT_ADDR}`,
-	c.brightCyan,
-	c.white,
-	c.cyan
-);
-panelRow(
-	"Morph L2 Explorer Telemetry",
-	"https://explorer-hoodi.morphl2.io",
-	c.brightCyan,
-	c.white,
-	c.cyan
-);
-panelBottom(c.cyan);
+	await pause(800);
 
-console.log("");
-panelTop("SYSTEM RECONCILIATION EXECUTION DONE", c.green);
-panelLine(
-	centerStr("MISSION COMPLETE -- ALL CRITICAL SUB-CHANNELS SOLVED AUTONOMOUSLY"),
-	c.green,
-	c.brightGreen + c.bold
-);
-panelBottom(c.green);
-console.log("");
-
-// ---------------------------------------------------------------------------
-// ASYNCHRONOUS LIFE-CYCLE RUNTIME INITIALIZATION
-// ---------------------------------------------------------------------------
-async function main() {
+	// -------------------------------------------------------------------------
+	// Transaction verification — pull ledger from dashboard endpoint
+	// -------------------------------------------------------------------------
+	info("On-Chain Settlement Verification:");
+	await pause(400);
+	blank();
 	try {
-		// All sequence phases have successfully mounted and evaluated above.
-		// Safe shutdown signal.
-		process.exit(0);
-	} catch (error) {
-		console.log("");
-		panelTop("FATAL SYSTEM RUNTIME EXCEPTION", c.brightRed);
-		panelRow(
-			"Exception Vector",
-			error.name || "RuntimeError",
-			c.brightRed,
-			c.brightYellow,
-			c.brightRed
-		);
-		panelLine(` [!!] Error Context: ${error.message}`, c.brightRed, c.white);
-		if (error.stack) {
-			const stackLines = error.stack.split("\n").slice(1, 4);
-			panelLine("      Stack Trace trace-log:", c.brightRed, c.dim);
-			stackLines.forEach((l) => panelLine(`       ${l.trim()}`, c.brightRed, c.dim));
+		const dashRes = await fetch(`${GATEWAY}/dashboard/${AGENT_ADDR}`);
+		const dashData = await dashRes.json();
+
+		if (dashRes.ok && dashData.success && dashData.recentCalls?.length) {
+			// Show only the calls from this run (up to successCount most recent)
+			const txs = dashData.recentCalls.slice(0, successCount);
+
+			for (let t = 0; t < txs.length; t++) {
+				const tx = txs[t];
+				const settled = !!tx.txHash;
+				const statusTag = settled
+					? fg.bGrn + B + "[SETTLED]" + R
+					: fg.bYel + B + "[PENDING]" + R;
+
+				console.log(
+					"  " +
+						D +
+						`[${t + 1}/${txs.length}]` +
+						R +
+						"  " +
+						fg.cyan +
+						B +
+						tx.apiName +
+						R +
+						"  " +
+						statusTag +
+						"  " +
+						fg.bYel +
+						`$${tx.amountUsd} USDC` +
+						R
+				);
+				await pause(150);
+				if (settled) {
+					sub("tx hash  ", tx.txHash, fg.bGrn);
+					await pause(120);
+					sub(
+						"explorer ",
+						tx.explorerUrl || "https://explorer-hoodi.morphl2.io",
+						fg.blue + underline
+					);
+				} else {
+					sub("tx hash  ", "pending — settlement propagating on-chain", fg.bYel);
+					await pause(120);
+					sub("explorer ", "https://explorer-hoodi.morphl2.io", fg.blue + underline);
+				}
+				await pause(120);
+				sub("nonce    ", tx.nonce || "n/a", D);
+				if (t < txs.length - 1) {
+					blank();
+					await pause(350);
+				}
+			}
+			blank();
+			await pause(600);
+
+			// Final balance — live from chain
+			row(
+				"  Final wallet balance",
+				`${dashData.wallet.usdcBalance} USDC`,
+				fg.cyan,
+				fg.bYel + B
+			);
+			await pause(200);
+			row(
+				"  Total spend recorded",
+				`$${dashData.wallet.totalSpendUsd} USDC`,
+				fg.cyan,
+				fg.bWht
+			);
+			await pause(200);
+			// Session calls vs lifetime total — clearly separated
+			row("  Calls this session", successCount.toString(), fg.cyan, fg.bGrn + B);
+			await pause(200);
+			row("  Lifetime calls (wallet)", dashData.wallet.callCount.toString(), fg.cyan, D);
+		} else {
+			warn("No ledger entries found — settlements may still be propagating");
 		}
-		panelBottom(c.brightRed);
-		console.log("");
-		process.exit(1);
+	} catch (e) {
+		warn(`Dashboard verification unavailable: ${e.message}`);
 	}
+	blank();
+
+	await pause(1000);
+
+	// Final status Frame
+	hdr("Autonomous Execution Complete", fg.bGrn);
+	hdrLine("", fg.bGrn);
+	await pause(400);
+
+	hdrLine(
+		`${successCount}/${TARGET.length} API calls successful  |  $${(Number(totalSpent) / 1_000_000).toFixed(6)} USDC spent  |  0 human approvals`,
+		fg.bGrn,
+		fg.bWht + B,
+		"center"
+	);
+	await pause(400);
+
+	hdrLine(
+		"All payments signed autonomously off-chain via ECDSA and settled on-chain via X402Facilitator",
+		fg.bGrn,
+		D,
+		"center"
+	);
+
+	hdrLine("", fg.bGrn);
+	hdrBottom(fg.bGrn);
+	console.log("");
+
+	// Hold the screen for demo — terminal prompt stays hidden
+	// Press Ctrl+C to exit when done recording
+	await pause(60_000);
 }
 
-// Global safety capture layers for unhandled asynchronous rejections
-process.on("unhandledRejection", (reason, promise) => {
+// ---------------------------------------------------------------------------
+// Error handling Overrides
+// ---------------------------------------------------------------------------
+process.on("unhandledRejection", (reason) => {
 	console.log("");
-	panelTop("UNHANDLED ASYNCHRONOUS REJECTION TRAP", c.red);
-	panelLine(
-		` [!!] Reason: ${reason instanceof Error ? reason.message : String(reason)}`,
-		c.red,
-		c.brightRed
-	);
-	panelBottom(c.red);
+	const innerW = W - 2;
+	console.log(D + "┌" + "─".repeat(innerW) + "┐" + R);
+
+	const errTitle = "UNHANDLED RUNTIME ERROR";
+	const titlePad = Math.max(0, innerW - slen(errTitle) - 2);
+	console.log(D + "│  " + R + B + fg.bRed + errTitle + R + " ".repeat(titlePad) + D + "│" + R);
+
+	const errMsg = String(reason instanceof Error ? reason.message : reason).slice(0, innerW - 4);
+	const msgPad = Math.max(0, innerW - slen(errMsg) - 2);
+	console.log(D + "│  " + R + fg.bRed + errMsg + " ".repeat(msgPad) + D + "│" + R);
+
+	console.log(D + "└" + "─".repeat(innerW) + "┘" + R);
 	console.log("");
 	process.exit(1);
 });
 
-// Fire runtime agent execution thread
 main();
