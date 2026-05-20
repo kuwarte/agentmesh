@@ -10,6 +10,7 @@ import paymentRoutes from "./routes/payment.routes";
 import registryRoutes from "./routes/registry.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import providerRoutes from "./routes/provider.routes";
+import faucetRoutes from "./routes/faucet.routes";
 
 const BANNER = `
    █████████                                 █████    ██████   ██████                  █████     
@@ -41,6 +42,7 @@ app.use("/payment", paymentRoutes);
 app.use("/registry", registryRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/provider", providerRoutes);
+app.use("/faucet", faucetRoutes);
 
 // Health check
 app.get("/", (_req: Request, res: Response) => {
