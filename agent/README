@@ -1,23 +1,19 @@
-AGENTMESH AGENT
-===============
-Autonomous AI agent powered by Google Gemini.
-Discovers APIs from the AgentMesh catalog and pays for them autonomously via x402.
+DEMO AGENT
+[/] Autonomous AI agent powered by Google Gemini.
+[/] Discovers APIs from the AgentMesh catalog and pays for them autonomously via x402.
 -------------------------------------------------------------------------------------
 SETUP
     1. Install dependencies
             cd agent
             npm install
-
     2. Configure environment
             cp .env.example .env
             # Fill in:
             #   GEMINI_API_KEY      — from https://aistudio.google.com/app/apikey
             #   AGENT_PRIVATE_KEY   — wallet private key with MockUSDC balance
             #   FACILITATOR_ADDRESS — X402Facilitator contract address
-
     3. Make sure the backend is running
             cd apps/backend && pnpm dev
-
     4. Run the agent
             node index.mjs
             # or with a custom task:
@@ -45,4 +41,3 @@ EXAMPLE TASKS
     node index.mjs "What is the current gas price and is it a good time to transact?"
     node index.mjs "Compare BTC and ETH performance and calculate their ratio"
     node index.mjs "Give me a full market overview of all available crypto prices"
--------------------------------------------------------------------------------------
