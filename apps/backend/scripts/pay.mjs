@@ -124,7 +124,7 @@ console.log("");
 // Step 5 — call the paid endpoint with single X-Payment header
 // ---------------------------------------------------------------------------
 console.log("5. Calling GET /api/v1/btc with X-Payment header...");
-const apiRes = await fetch(`${GATEWAY}/api/v1/btc`, {
+const apiRes = await fetch(`${GATEWAY}/api/v1/call/0xd0241e382a4fe68a0f61a74d98b2f58065624cc423dcfa31505f2e8e55119015`, {
 	headers: {
 		"X-Payment": xPaymentHeader,
 	},

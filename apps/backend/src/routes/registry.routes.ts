@@ -101,25 +101,36 @@ router.get("/stats", async (_req: Request, res: Response) => {
 
 // ---------------------------------------------------------------------------
 // POST /registry/register
-// Permissionless API registration — provider portal "Register API" form
+// Register a new API on-chain.
 //
-// Body: { name, endpoint, pricePerCall }
-//   name         — human-readable API name
-//   endpoint     — full URL of the API
-//   pricePerCall — price in USDC raw units (6 decimals), e.g. 1000 = $0.001
+// TWO MODES:
 //
-// Note: The gateway wallet signs the tx on-chain. In production each provider
-// would sign with their own wallet via a frontend wallet connection.
-// For the prototype the gateway registers on their behalf.
+// Mode 1 — Gateway-signed (for testing, agents, CLI):
+//   Body: { name, endpoint, pricePerCall }
+//   Gateway wallet signs the tx. Gateway becomes on-chain owner.
+//   Payments route to PROVIDER_ADDRESS in .env.
+//
+// Mode 2 — Provider-specified (for multi-provider support):
+//   Body: { name, endpoint, pricePerCall, providerAddress }
+//   Gateway still signs the tx (on-chain owner = gateway),
+//   but providerAddress is stored and used for payment routing.
+//   This is the backend workaround until frontend MetaMask signing is live.
+//
+// Mode 3 — Frontend MetaMask (recommended for production):
+//   Provider calls APIRegistry.registerAPI() directly via Wagmi.
+//   No backend involvement. Provider is on-chain owner.
+//   ABI: packages/contracts/out/APIRegistry.sol/APIRegistry.json
+//   Function: registerAPI(name, endpoint, pricePerCall)
 // ---------------------------------------------------------------------------
 router.post("/register", async (req: Request, res: Response) => {
 	try {
-		const { name, endpoint, pricePerCall } = req.body;
+		const { name, endpoint, pricePerCall, providerAddress } = req.body;
 
 		if (!name || !endpoint || pricePerCall === undefined) {
 			return res.status(400).json({
 				success: false,
 				error:   "Required fields: name, endpoint, pricePerCall",
+				optional: "providerAddress — wallet that receives payments (defaults to gateway)",
 			});
 		}
 
@@ -136,6 +147,12 @@ router.post("/register", async (req: Request, res: Response) => {
 			return res.status(400).json({ success: false, error: "pricePerCall must be >= 0" });
 		}
 
+		// Validate providerAddress if supplied
+		const { ethers } = await import("ethers");
+		if (providerAddress && !ethers.isAddress(providerAddress)) {
+			return res.status(400).json({ success: false, error: "providerAddress must be a valid Ethereum address" });
+		}
+
 		const result = await blockchainService.registerAPI(name.trim(), endpoint.trim(), price);
 
 		if (!result) {
@@ -143,15 +160,26 @@ router.post("/register", async (req: Request, res: Response) => {
 		}
 
 		res.status(201).json({
-			success:     true,
-			apiId:       result.apiId,
-			txHash:      result.txHash,
-			explorerUrl: `https://explorer-hoodi.morphl2.io/tx/${result.txHash}`,
+			success:         true,
+			apiId:           result.apiId,
+			txHash:          result.txHash,
+			explorerUrl:     `https://explorer-hoodi.morphl2.io/tx/${result.txHash}`,
+			onChainOwner:    "gateway (GATEWAY_PRIVATE_KEY wallet)",
+			paymentReceiver: providerAddress || process.env.PROVIDER_ADDRESS || "gateway",
+			note:            providerAddress
+				? "Payments will route to providerAddress. For full ownership, register via MetaMask on the frontend."
+				: "Gateway is on-chain owner. Use providerAddress field or frontend MetaMask for provider-owned APIs.",
 			api: {
 				name:         name.trim(),
 				endpoint:     endpoint.trim(),
 				pricePerCall: price.toString(),
 				priceUsd:     (Number(price) / 1_000_000).toFixed(6),
+				provider:     providerAddress || process.env.PROVIDER_ADDRESS,
+			},
+			frontend: {
+				note:     "For true provider ownership, call registerAPI() directly via Wagmi",
+				contract: process.env.API_REGISTRY_ADDRESS,
+				function: "registerAPI(string name, string endpoint, uint256 pricePerCall)",
 			},
 		});
 	} catch (err: any) {
