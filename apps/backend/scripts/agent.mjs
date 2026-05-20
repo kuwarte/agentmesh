@@ -1,6 +1,5 @@
 /**
- * Usage:
- *    node scripts/agent-enhanced.mjs
+ * ?? test2 mimic agentic transaction
  */
 
 import { ethers } from "ethers";
