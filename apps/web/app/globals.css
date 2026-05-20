@@ -495,6 +495,7 @@ body::after {
   z-index: 100;
   display: flex;
   align-items: center;
+  border-bottom: 1px solid var(--color-border-subtle);
   background: rgba(8, 12, 10, 0.85);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -625,3 +626,104 @@ body::after {
     --container-padding: 20px;
   }
 }
+
+/* ============================================================
+   REVEAL UTILITIES
+   Used with useReveal() hook. Apply .reveal to any element,
+   then add a variant class for the direction/style.
+   Toggle .revealed (via JS) to trigger the transition.
+   ============================================================ */
+
+/* ── Base — all reveal elements start hidden ────────── */
+
+.reveal {
+  transition:
+    opacity  var(--duration-slow) var(--ease-expo),
+    transform var(--duration-slow) var(--ease-expo);
+  will-change: opacity, transform;
+}
+
+/* ── Revealed state — transition target ─────────────── */
+
+.revealed {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* ── Variants — define the FROM state ───────────────── */
+
+/* Fade up (default — most elements) */
+.reveal-up {
+  opacity: 0;
+  transform: translateY(32px);
+}
+
+/* Fade in (no movement — full sections, backgrounds) */
+.reveal-fade {
+  opacity: 0;
+  transform: none;
+}
+
+/* Fade from left */
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-32px);
+}
+
+/* Fade from right */
+.reveal-right {
+  opacity: 0;
+  transform: translateX(32px);
+}
+
+/* Scale up — cards, stat numbers */
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.94) translateY(16px);
+}
+
+/* ── Stagger delays for child elements ───────────────── */
+
+.stagger-1  { transition-delay: 80ms;  }
+.stagger-2  { transition-delay: 160ms; }
+.stagger-3  { transition-delay: 240ms; }
+.stagger-4  { transition-delay: 320ms; }
+.stagger-5  { transition-delay: 400ms; }
+.stagger-6  { transition-delay: 480ms; }
+
+/* ============================================================
+   REVEAL — data-attribute driven (used with useReveal hook)
+   Elements start hidden via .reveal-up / .reveal-fade etc.
+   JS adds data-revealed="true" → transitions to visible.
+   ============================================================ */
+
+/* Transition base */
+[data-reveal] {
+  transition:
+    opacity  600ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+/* Revealed state */
+[data-revealed="true"] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* FROM states */
+[data-reveal="up"]    { opacity: 0; transform: translateY(36px); }
+[data-reveal="fade"]  { opacity: 0; transform: none; }
+[data-reveal="left"]  { opacity: 0; transform: translateX(-28px); }
+[data-reveal="right"] { opacity: 0; transform: translateX(28px); }
+[data-reveal="scale"] { opacity: 0; transform: scale(0.93) translateY(20px); }
+
+/* Stagger delays — add data-stagger="N" to children */
+[data-stagger="1"]  { transition-delay: 60ms;  }
+[data-stagger="2"]  { transition-delay: 120ms; }
+[data-stagger="3"]  { transition-delay: 180ms; }
+[data-stagger="4"]  { transition-delay: 240ms; }
+[data-stagger="5"]  { transition-delay: 300ms; }
+[data-stagger="6"]  { transition-delay: 360ms; }
+[data-stagger="7"]  { transition-delay: 420ms; }
+[data-stagger="8"]  { transition-delay: 480ms; }

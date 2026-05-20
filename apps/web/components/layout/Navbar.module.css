@@ -74,6 +74,16 @@
   background: rgba(0, 255, 136, 0.05);
 }
 
+.btnText {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 130px;
+
+  white-space: nowrap;
+}
+
 /* ── Hamburger ──────────────────────────────────────── */
 
 .hamburger {
