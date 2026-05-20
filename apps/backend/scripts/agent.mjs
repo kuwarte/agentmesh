@@ -23,14 +23,14 @@ const env = Object.fromEntries(
 
 const GATEWAY = "http://localhost:3001";
 const FACILITATOR = env.X402_FACILITATOR_ADDRESS;
-const AGENT_KEY = env.GATEWAY_PRIVATE_KEY;
+const AGENT_KEY = env.AGENT_PRIVATE_KEY || env.GATEWAY_PRIVATE_KEY;
 
 if (!FACILITATOR || FACILITATOR.startsWith("<")) {
 	console.error(" [!] CRITICAL: X402_FACILITATOR_ADDRESS not set in .env");
 	process.exit(1);
 }
 if (!AGENT_KEY || AGENT_KEY.startsWith("<")) {
-	console.error(" [!] CRITICAL: GATEWAY_PRIVATE_KEY not set in .env");
+	console.error(" [!] CRITICAL: AGENT_PRIVATE_KEY (or GATEWAY_PRIVATE_KEY) not set in .env");
 	process.exit(1);
 }
 
@@ -294,6 +294,13 @@ await pause(1800);
 // Agent Identity Card Panel
 panelTop("AGENT IDENTITY MATRIX", c.magenta);
 panelRow("Agent Address", AGENT_ADDR, c.brightCyan, c.brightYellow, c.magenta);
+panelRow(
+	"Key Source",
+	env.AGENT_PRIVATE_KEY ? "AGENT_PRIVATE_KEY" : "GATEWAY_PRIVATE_KEY (fallback)",
+	c.brightCyan,
+	env.AGENT_PRIVATE_KEY ? c.brightGreen : c.brightYellow,
+	c.magenta
+);
 panelRow(
 	"Network Context",
 	"Morph Hoodi Testnet (ChainID: 2910)",
