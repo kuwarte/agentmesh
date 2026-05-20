@@ -727,3 +727,40 @@ body::after {
 [data-stagger="6"]  { transition-delay: 360ms; }
 [data-stagger="7"]  { transition-delay: 420ms; }
 [data-stagger="8"]  { transition-delay: 480ms; }
+
+/*
+  ============================================================
+  SIDEBAR SHELL — append these rules to your globals.css
+  ============================================================
+ 
+  Add to your :root block:
+    --sidebar-width: 220px;
+ 
+  Then add these classes:
+*/
+ 
+:root {
+  --sidebar-width: 220px;
+}
+ 
+/* Shell wraps sidebar + scrollable content */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+ 
+/* Content area shifts right of the sidebar */
+.app-content {
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+}
+ 
+@media (max-width: 768px) {
+  .app-content {
+    margin-left: 0;
+    margin-bottom: 60px; /* space for bottom-tab sidebar */
+  }
+}
+ 

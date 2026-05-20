@@ -100,7 +100,7 @@ export default function Footer() {
           <div key={title}>
             <p className="footer__col-title">{title}</p>
             <ul className="footer__col-links">
-              {links.map(({ label, href, target }) => (
+              {links.map(({ label, href, target }: { label: string; href: string; target?: string }) => (
                 <li key={label}>
                   <Link
                     href={href}
