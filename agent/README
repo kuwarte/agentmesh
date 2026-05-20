@@ -1,0 +1,48 @@
+AGENTMESH AGENT
+===============
+Autonomous AI agent powered by Google Gemini.
+Discovers APIs from the AgentMesh catalog and pays for them autonomously via x402.
+-------------------------------------------------------------------------------------
+SETUP
+    1. Install dependencies
+            cd agent
+            npm install
+
+    2. Configure environment
+            cp .env.example .env
+            # Fill in:
+            #   GEMINI_API_KEY      — from https://aistudio.google.com/app/apikey
+            #   AGENT_PRIVATE_KEY   — wallet private key with MockUSDC balance
+            #   FACILITATOR_ADDRESS — X402Facilitator contract address
+
+    3. Make sure the backend is running
+            cd apps/backend && pnpm dev
+
+    4. Run the agent
+            node index.mjs
+            # or with a custom task:
+            node index.mjs "What is the BTC/ETH ratio and is gas cheap right now?"
+-------------------------------------------------------------------------------------
+HOW IT WORKS
+    1. Agent fetches the catalog from GET /api/v1/catalog
+    2. Catalog is converted to Gemini function/tool definitions
+    3. Agent sends the task + tools to Gemini
+    4. Gemini decides which APIs to call (no hardcoding)
+    5. Agent executes each call with x402 payment (signs autonomously)
+    6. Results are sent back to Gemini
+    7. Gemini synthesizes a final analysis
+    8. Zero human interaction throughout
+-------------------------------------------------------------------------------------
+REQUIREMENTS
+    - Node.js 18+
+    - AgentMesh backend running (pnpm dev in apps/backend)
+    - Agent wallet with MockUSDC balance
+    - Agent wallet has approved X402Facilitator (one-time setup)
+    - Gemini API key
+-------------------------------------------------------------------------------------
+EXAMPLE TASKS
+    node index.mjs "Analyze the crypto market and give me a trading recommendation"
+    node index.mjs "What is the current gas price and is it a good time to transact?"
+    node index.mjs "Compare BTC and ETH performance and calculate their ratio"
+    node index.mjs "Give me a full market overview of all available crypto prices"
+-------------------------------------------------------------------------------------

@@ -262,7 +262,10 @@ class BlockchainService {
 	// Replay PaymentSettled events from X402Facilitator to rebuild the ledger
 	// after a server restart. The chain is the source of truth.
 	// Paginates in 5000-block chunks to respect Morph Hoodi RPC limits.
-	async replayLedgerFromChain(ledger: import("./ledger.service").LedgerService): Promise<void> {
+	async replayLedgerFromChain(
+		ledger: import("./ledger.service").LedgerService,
+		builtinEndpoints?: Record<string, { name: string; apiId: string }>
+	): Promise<void> {
 		try {
 			console.log("[ledger] Replaying PaymentSettled events from chain...");
 
@@ -312,11 +315,29 @@ class BlockchainService {
 				const nonce  = e.args[4] as string;
 				const txHash = e.transactionHash;
 
-				const matchedAPI = allAPIs.find(
+				// Match API name: check on-chain registry first, then built-in endpoints
+				const matchedOnChain = allAPIs.find(
 					(a) => a.provider.toLowerCase() === prov.toLowerCase()
 				);
-				const apiId   = matchedAPI?.apiId ?? "";
-				const apiName = matchedAPI?.name ?? "Unknown API";
+
+				let apiId   = matchedOnChain?.apiId ?? "";
+				let apiName = matchedOnChain?.name ?? "";
+
+				// If not found on-chain, check built-in endpoints by apiId
+				if (!apiName && builtinEndpoints) {
+					const builtinMatch = Object.values(builtinEndpoints).find(
+						(e) => e.apiId && allAPIs.some((a) => a.apiId === e.apiId && a.provider.toLowerCase() === prov.toLowerCase())
+					);
+					if (builtinMatch) {
+						apiId   = builtinMatch.apiId;
+						apiName = builtinMatch.name;
+					}
+				}
+
+				// Final fallback: use provider address as identifier
+				if (!apiName) {
+					apiName = `API (provider: ${prov.slice(0, 10)}...)`;
+				}
 
 				const block     = await provider.getBlock(e.blockNumber);
 				const timestamp = block ? block.timestamp * 1000 : Date.now();

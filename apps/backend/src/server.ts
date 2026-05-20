@@ -5,7 +5,7 @@ dotenv.config();
 
 import { blockchainService } from "./services/blockchain.service";
 import { ledgerService } from "./services/ledger.service";
-import apiRoutes, { syncWithRegistry } from "./routes/api.routes";
+import apiRoutes, { syncWithRegistry, ENDPOINTS } from "./routes/api.routes";
 import paymentRoutes from "./routes/payment.routes";
 import registryRoutes from "./routes/registry.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
@@ -80,6 +80,49 @@ app.get("/", (_req: Request, res: Response) => {
 	});
 });
 
+// Public config — safe for frontend "Getting Started" page and agent onboarding
+// Contains all addresses and info agents/users need to integrate
+app.get("/config", (_req: Request, res: Response) => {
+	res.json({
+		network: {
+			name:        process.env.CHAIN_NAME || "morph_hoodi",
+			chainId:     blockchainService.getChainId(),
+			rpcUrl:      "https://rpc-hoodi.morphl2.io",
+			explorerUrl: "https://explorer-hoodi.morphl2.io",
+		},
+		contracts: {
+			facilitator: process.env.X402_FACILITATOR_ADDRESS || null,
+			registry:    process.env.API_REGISTRY_ADDRESS     || null,
+			usdc:        process.env.USDC_ADDRESS             || null,
+		},
+		faucet: {
+			endpoint:    "/faucet/mint",
+			amount:      "1000",
+			amountUsd:   "1000.000000",
+			cooldown:    "3600 seconds (1 hour)",
+			checkUrl:    "/faucet/status/:address",
+		},
+		payment: {
+			scheme:       "x402",
+			headerName:   "X-Payment",
+			headerFormat: "base64(JSON({ payer, provider, amount, nonce, deadline, signature }))",
+			nonceUrl:     "/payment/nonce",
+			verifyUrl:    "/payment/verify",
+			signMessage:  "keccak256(abi.encodePacked(facilitator, payer, provider, amount, nonce, deadline))",
+		},
+		quickstart: {
+			step1: "GET /config — get contract addresses and network info",
+			step2: "GET /faucet/status/:address — check if you need MockUSDC",
+			step3: "POST /faucet/mint { address } — get 1000 test USDC",
+			step4: "Approve: usdc.approve(contracts.facilitator, maxUint256)",
+			step5: "GET /api/v1/catalog — discover available APIs and prices",
+			step6: "GET /payment/nonce — get a fresh nonce + deadline",
+			step7: "Sign: keccak256(facilitator+payer+provider+amount+nonce+deadline)",
+			step8: "Call any paid API with X-Payment: base64(JSON({...})) header",
+		},
+	});
+});
+
 const PORT = Number(process.env.PORT) || 3001;
 
 async function bootstrap() {
@@ -89,7 +132,8 @@ async function bootstrap() {
 		await blockchainService.init();
 
 		// Replay past PaymentSettled events to restore ledger after restart
-		await blockchainService.replayLedgerFromChain(ledgerService);
+		// Pass ENDPOINTS so built-in API names are resolved correctly
+		await blockchainService.replayLedgerFromChain(ledgerService, ENDPOINTS);
 
 		// Sync built-in endpoint catalog with on-chain registry prices
 		await syncWithRegistry();
