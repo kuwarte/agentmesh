@@ -87,13 +87,13 @@ export default function Protocol() {
           </div>
           <div className={styles.impactVisual} aria-hidden="true">
             <div className={styles.codeBlock}>
-              <span className={styles.comment}>// X402 Facilitator Settlement</span>
+              <span className={styles.comment}>X402 Facilitator Settlement</span>
               <span className={styles.keyword}>function</span> <span className={styles.func}>settlePayment</span>(
               <br />  <span className={styles.type}>address</span> agent,
               <br />  <span className={styles.type}>uint256</span> amount,
               <br />  <span className={styles.type}>bytes</span> <span className={styles.keyword}>calldata</span> signature
               <br />) <span className={styles.keyword}>external</span> {'{'}
-              <br />  <span className={styles.comment}>  // EIP-3009 transfer execution</span>
+              <br />  <span className={styles.comment}> EIP-3009 transfer execution</span>
               <br />  usdc.receiveWithAuthorization(agent, amount, signature);
               <br />{'}'}
             </div>
