@@ -1,0 +1,766 @@
+/* ============================================================
+   AGENTMESH — GLOBAL STYLES
+   Fonts are loaded via next/font in layout.tsx.
+   All design tokens, resets, utilities, and component
+   base styles live here. No Tailwind config required.
+   ============================================================ */
+
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+
+:root {
+  /*
+    Fonts — variables injected by next/font on <html>
+    --font-display : Syne       — headlines, hero text, bold statements
+    --font-body    : Lexend     — body copy, UI labels, descriptions
+    --font-mono    : Space Mono — code blocks, badges, buttons, nav
+  */
+  --font-display: var(--font-syne),       system-ui, sans-serif;
+  --font-body:    var(--font-lexend),     system-ui, sans-serif;
+  --font-mono:    var(--font-space-mono), 'Courier New', monospace;
+
+  /* Convenience aliases so existing --font-sans refs still resolve */
+  --font-sans: var(--font-lexend), system-ui, sans-serif;
+
+  /* Background layers */
+  --color-bg-base:     #080c0a;
+  --color-bg-surface:  #0d1410;
+  --color-bg-elevated: #111a14;
+
+  /* Accent — terminal green */
+  --color-accent:             #22f078;
+  --color-accent-dim:         #16a84f;
+  --color-accent-dark:        #0b5e2c;
+  --color-accent-glow:        rgba(0, 255, 136, 0.15);
+  --color-accent-glow-strong: rgba(0, 255, 136, 0.25);
+
+  /* Text */
+  --color-text-primary:   #e8f0eb;
+  --color-text-muted:     #7a9884;
+  --color-text-faint:     #3d5445;
+  --color-text-dark:      #080c0a;
+
+  /* Borders */
+  --color-border-subtle:  rgba(0, 255, 136, 0.08);
+  --color-border-default: rgba(0, 255, 136, 0.15);
+  --color-border-strong:  rgba(0, 255, 136, 0.30);
+
+  /* Radius */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-pill: 999px;
+
+  /* Spacing */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* Layout */
+  --container-padding: 200px;
+  --nav-height:        70px;
+
+  /* Motion */
+  --ease-expo:       cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast:   150ms;
+  --duration-base:   250ms;
+  --duration-slow:   400ms;
+}
+
+/* ============================================================
+   RESET
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 18px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-base);
+  overflow-x: hidden;
+  position: relative;
+}
+
+img, video, svg {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  background: none;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+h1 { font-size: clamp(2.5rem,  5vw, 4rem);      font-weight: 800; }
+h2 { font-size: clamp(1.75rem, 3.5vw, 2.75rem); font-weight: 700; }
+h3 { font-size: clamp(1.25rem, 2.5vw, 1.75rem); font-weight: 700; }
+h4 { font-size: 1.125rem; font-weight: 600;      }
+
+p {
+  font-family: var(--font-body);
+  color: var(--color-text-muted);
+  line-height: 1.75;
+}
+
+code, pre {
+  font-family: var(--font-mono);
+}
+
+/* Inline code */
+code:not(pre code) {
+  font-size: 0.85em;
+  color: var(--color-accent);
+  background: rgba(0, 255, 136, 0.06);
+  border: 1px solid rgba(0, 255, 136, 0.12);
+  padding: 0.1em 0.4em;
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+
+::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar-track { background: var(--color-bg-base); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-default);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+
+/* ============================================================
+   SELECTION
+   ============================================================ */
+
+::selection {
+  background: var(--color-accent-glow-strong);
+  color: var(--color-accent);
+}
+
+/* ============================================================
+   FOCUS
+   ============================================================ */
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+   AMBIENT EFFECTS
+   ============================================================ */
+
+/* CRT scanlines */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 136, 0.012) 2px,
+    rgba(0, 255, 136, 0.012) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Top radial glow */
+body::after {
+  content: '';
+  position: fixed;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 700px;
+  background: radial-gradient(
+    ellipse at center top,
+    rgba(0, 255, 136, 0.07) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+
+.container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: var(--container-padding);
+}
+
+.section {
+  padding-block: var(--space-24);
+  position: relative;
+  z-index: 1;
+}
+
+.section-sm {
+  padding-block: var(--space-16);
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   KEYFRAMES
+   ============================================================ */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pulseGreen {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+@keyframes beamDrop {
+  from { opacity: 0; transform: scaleY(0); transform-origin: top; }
+  to   { opacity: 1; transform: scaleY(1); transform-origin: top; }
+}
+
+@keyframes rotateSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   ANIMATION UTILITIES
+   ============================================================ */
+
+.animate-fade-up { animation: fadeInUp var(--duration-slow) var(--ease-expo) both; }
+.animate-fade-in { animation: fadeIn   var(--duration-slow) var(--ease-expo) both; }
+.animate-beam    { animation: beamDrop 800ms var(--ease-expo) both; }
+.animate-pulse   { animation: pulseGreen 2s ease-in-out infinite; }
+.animate-shimmer {
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+
+.delay-0   { animation-delay: 0ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-800 { animation-delay: 800ms; }
+
+/* ============================================================
+   TEXT UTILITIES
+   ============================================================ */
+
+.text-accent     { color: var(--color-accent); }
+.text-accent-dim { color: var(--color-accent-dim); }
+.text-muted      { color: var(--color-text-muted); }
+.text-mono       { font-family: var(--font-mono); }
+.text-primary    { color: var(--color-text-primary); }
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-accent) 0%, #00ccff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================================
+   BADGE
+   ============================================================ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--color-accent);
+  background: rgba(0, 255, 136, 0.06);
+  border: 1px solid var(--color-border-default);
+  padding: 0.3em 0.85em;
+  border-radius: var(--radius-pill);
+}
+
+.badge::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: pulseGreen 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   BUTTON
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  padding: 0.7em 1.6em;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  background: rgba(0, 255, 136, 0.05);
+  transition:
+    background   var(--duration-base) var(--ease-in-out),
+    box-shadow   var(--duration-base) var(--ease-in-out),
+    transform    var(--duration-fast) var(--ease-in-out),
+    border-color var(--duration-base) var(--ease-in-out),
+    color        var(--duration-base) var(--ease-in-out);
+  white-space: nowrap;
+  position: relative;
+}
+
+.btn-primary {
+  color: #060a07;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.btn-primary:hover {
+  background: #1affa0;
+  box-shadow: 0 0 28px rgba(0, 255, 136, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btn-ghost {
+  color: var(--color-text-muted);
+  background: transparent;
+  border-color: var(--color-border-default);
+}
+
+.btn-ghost:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+  background: rgba(0, 255, 136, 0.04);
+}
+
+/* ============================================================
+   CARD
+   ============================================================ */
+
+.card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color var(--duration-base) var(--ease-in-out),
+    box-shadow   var(--duration-base) var(--ease-in-out);
+}
+
+.card:hover {
+  border-color: var(--color-border-default);
+  box-shadow: 0 0 40px rgba(0, 255, 136, 0.04);
+}
+
+.card-elevated {
+  background: var(--color-bg-elevated);
+}
+
+/* ============================================================
+   STAT CARD
+   ============================================================ */
+
+.stat-card__value {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.stat-card__label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  margin-top: var(--space-2);
+}
+
+/* ============================================================
+   CODE BLOCK
+   ============================================================ */
+
+.code-block {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-6);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--color-accent);
+  overflow-x: auto;
+  line-height: 1.7;
+}
+
+/* ============================================================
+   NAV
+   ============================================================ */
+
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-height);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: rgba(8, 12, 10, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.nav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: var(--container-padding);
+}
+
+.nav__logo {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.nav__logo span {
+  color: var(--color-accent);
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.nav__link {
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+  transition: all var(--duration-fast);
+  font-family: var(--font-body);
+}
+
+.nav__link:hover {
+  opacity: 0.75;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+.footer {
+  border-top: 1px solid var(--color-border-subtle);
+  padding-block: var(--space-12);
+  position: relative;
+  z-index: 1;
+}
+
+.footer__inner {
+  display: grid;
+  grid-template-columns: 1fr repeat(2, auto);
+  gap: var(--space-12);
+  align-items: start;
+  margin-inline: auto;
+  padding-inline: var(--container-padding);
+}
+
+.footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.footer__copy {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+}
+
+.footer__col-title {
+  font-size: 0.7rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+}
+
+.footer__col-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.footer__col-link {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  transition: color var(--duration-fast);
+}
+
+.footer__col-link:hover {
+  color: var(--color-accent);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1024px) {
+  :root {
+    --container-padding: 60px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --container-padding: 32px;
+  }
+
+  .nav__links {
+    display: none;
+  }
+
+  .footer__inner {
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --container-padding: 20px;
+  }
+}
+
+/* ============================================================
+   REVEAL UTILITIES
+   Used with useReveal() hook. Apply .reveal to any element,
+   then add a variant class for the direction/style.
+   Toggle .revealed (via JS) to trigger the transition.
+   ============================================================ */
+
+/* ── Base — all reveal elements start hidden ────────── */
+
+.reveal {
+  transition:
+    opacity  var(--duration-slow) var(--ease-expo),
+    transform var(--duration-slow) var(--ease-expo);
+  will-change: opacity, transform;
+}
+
+/* ── Revealed state — transition target ─────────────── */
+
+.revealed {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* ── Variants — define the FROM state ───────────────── */
+
+/* Fade up (default — most elements) */
+.reveal-up {
+  opacity: 0;
+  transform: translateY(32px);
+}
+
+/* Fade in (no movement — full sections, backgrounds) */
+.reveal-fade {
+  opacity: 0;
+  transform: none;
+}
+
+/* Fade from left */
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-32px);
+}
+
+/* Fade from right */
+.reveal-right {
+  opacity: 0;
+  transform: translateX(32px);
+}
+
+/* Scale up — cards, stat numbers */
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.94) translateY(16px);
+}
+
+/* ── Stagger delays for child elements ───────────────── */
+
+.stagger-1  { transition-delay: 80ms;  }
+.stagger-2  { transition-delay: 160ms; }
+.stagger-3  { transition-delay: 240ms; }
+.stagger-4  { transition-delay: 320ms; }
+.stagger-5  { transition-delay: 400ms; }
+.stagger-6  { transition-delay: 480ms; }
+
+/* ============================================================
+   REVEAL — data-attribute driven (used with useReveal hook)
+   Elements start hidden via .reveal-up / .reveal-fade etc.
+   JS adds data-revealed="true" → transitions to visible.
+   ============================================================ */
+
+/* Transition base */
+[data-reveal] {
+  transition:
+    opacity  600ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+/* Revealed state */
+[data-revealed="true"] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* FROM states */
+[data-reveal="up"]    { opacity: 0; transform: translateY(36px); }
+[data-reveal="fade"]  { opacity: 0; transform: none; }
+[data-reveal="left"]  { opacity: 0; transform: translateX(-28px); }
+[data-reveal="right"] { opacity: 0; transform: translateX(28px); }
+[data-reveal="scale"] { opacity: 0; transform: scale(0.93) translateY(20px); }
+
+/* Stagger delays — add data-stagger="N" to children */
+[data-stagger="1"]  { transition-delay: 60ms;  }
+[data-stagger="2"]  { transition-delay: 120ms; }
+[data-stagger="3"]  { transition-delay: 180ms; }
+[data-stagger="4"]  { transition-delay: 240ms; }
+[data-stagger="5"]  { transition-delay: 300ms; }
+[data-stagger="6"]  { transition-delay: 360ms; }
+[data-stagger="7"]  { transition-delay: 420ms; }
+[data-stagger="8"]  { transition-delay: 480ms; }
+
+/*
+  ============================================================
+  SIDEBAR SHELL — append these rules to your globals.css
+  ============================================================
+ 
+  Add to your :root block:
+    --sidebar-width: 220px;
+ 
+  Then add these classes:
+*/
+ 
+:root {
+  --sidebar-width: 220px;
+}
+ 
+/* Shell wraps sidebar + scrollable content */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+ 
+/* Content area shifts right of the sidebar */
+.app-content {
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+}
+ 
+@media (max-width: 768px) {
+  .app-content {
+    margin-left: 0;
+    margin-bottom: 60px; /* space for bottom-tab sidebar */
+  }
+}
+ 

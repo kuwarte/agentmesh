@@ -1,0 +1,269 @@
+/* ============================================================
+   CTA SECTION
+   ============================================================ */
+
+.cta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 480px;
+  padding-block: var(--space-24);
+  background: var(--color-bg-base);
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* ── Radial glow ────────────────────────────────────── */
+
+.glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 700px;
+  height: 500px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(20, 255, 110, 0.13) 0%,
+    rgba(10, 200, 80,  0.07) 35%,
+    rgba(0,  140, 55,  0.02) 60%,
+    transparent 75%
+  );
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(4px);
+}
+
+/* ── Content ────────────────────────────────────────── */
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-6);
+  max-width: 700px;
+  width: 100%;
+  padding-inline: var(--space-8);
+}
+
+/* ── Headline ───────────────────────────────────────── */
+
+.headline {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.accent {
+  color: var(--color-accent);
+  display: block;
+}
+
+/* ── Subtitle ───────────────────────────────────────── */
+
+.sub {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  line-height: 1.75;
+  max-width: 440px;
+}
+
+/* ── Form wrapper — pill container ─────────────────── */
+
+.formWrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--radius-pill);
+  padding: 5px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: border-color var(--duration-base) var(--ease-in-out),
+              box-shadow   var(--duration-base) var(--ease-in-out);
+}
+
+.formWrap:focus-within {
+  border-color: rgba(34, 240, 120, 0.22);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 3px rgba(34, 240, 120, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.formError {
+  border-color: rgba(255, 107, 107, 0.3);
+}
+
+/* ── Input wrapper ──────────────────────────────────── */
+
+.inputWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-4);
+  flex: 1;
+}
+
+.inputPrefix {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--color-accent);
+  opacity: 0.6;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.input {
+  width: 280px;
+  height: 44px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  caret-color: var(--color-accent);
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+}
+
+/* ── Submit button ──────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 1.4rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(34, 240, 120, 0.25);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 240, 120, 0.12) 0%,
+    rgba(34, 240, 120, 0.06) 100%
+  );
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition:
+    background   var(--duration-base) var(--ease-in-out),
+    border-color var(--duration-base) var(--ease-in-out),
+    box-shadow   var(--duration-base) var(--ease-in-out),
+    transform    var(--duration-fast) var(--ease-in-out),
+    color        var(--duration-base) var(--ease-in-out);
+}
+
+.btnText {
+  display: inline-flex;
+  align-items: center;
+  min-width: 110px;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 240, 120, 0.22) 0%,
+    rgba(34, 240, 120, 0.10) 100%
+  );
+  border-color: rgba(34, 240, 120, 0.5);
+  color: #fff;
+  box-shadow: 0 0 24px rgba(34, 240, 120, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Success message ────────────────────────────────── */
+
+.successMsg {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--color-accent);
+  background: rgba(34, 240, 120, 0.06);
+  border: 1px solid rgba(34, 240, 120, 0.18);
+  border-radius: var(--radius-pill);
+  padding: 0.75em 1.5em;
+  animation: fadeInUp var(--duration-slow) var(--ease-expo) both;
+}
+
+.successIcon {
+  font-size: 1rem;
+}
+
+/* ── Status notes ───────────────────────────────────── */
+
+.statusNote {
+  margin-top: var(--space-3);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--color-accent-dim);
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.statusError { color: #ff6b6b; }
+
+/* ── Reveal animation ───────────────────────────────── */
+
+.revealChild {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity   500ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-revealed="true"] .revealChild {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .glow { width: 100vw; height: 360px; }
+
+  .formWrap {
+    flex-direction: column;
+    border-radius: var(--radius-xl);
+    width: 100%;
+    max-width: 360px;
+    padding: 8px;
+    gap: var(--space-2);
+  }
+
+  .inputWrap { padding-inline: var(--space-3); }
+  .input     { width: 100%; }
+  .btn       { width: 100%; }
+}

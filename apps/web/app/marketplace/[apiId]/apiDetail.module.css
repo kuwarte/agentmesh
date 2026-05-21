@@ -1,0 +1,596 @@
+/* ============================================================
+   API DETAIL PAGE
+   ============================================================ */
+
+/* ── Shell ──────────────────────────────────────────── */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-bg-base);
+}
+
+/* ── Scrollable content body ────────────────────────── */
+
+.body {
+  margin-left: 220px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding-inline: var(--space-10);
+  padding-bottom: 120px; /* footer spacing */
+}
+
+/* ── Breadcrumb ─────────────────────────────────────── */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.breadcrumbLink {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color var(--duration-fast);
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-accent);
+}
+
+.breadcrumbSep {
+  color: var(--color-text-faint);
+  font-size: 0.8rem;
+  user-select: none;
+}
+
+.breadcrumbCurrent {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+}
+
+/* ── Layout ─────────────────────────────────────────── */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 56px;
+  align-items: start;
+}
+
+/* ── Main ───────────────────────────────────────────── */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/* ── Tags ───────────────────────────────────────────── */
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--color-accent);
+  background: rgba(34, 240, 120, 0.06);
+  border: 1px solid rgba(34, 240, 120, 0.18);
+  padding: 0.28em 0.72em;
+}
+
+/* ── Title ──────────────────────────────────────────── */
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* ── Description ────────────────────────────────────── */
+
+.desc {
+  max-width: 720px;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.96rem;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+/* ── Stats ──────────────────────────────────────────── */
+
+.statsBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.stat {
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  color: var(--color-text-muted);
+}
+
+.stat strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.dot {
+  color: var(--color-text-faint);
+  font-size: 0.72rem;
+}
+
+.divider {
+  height: 1px;
+  background: var(--color-border-subtle);
+}
+
+/* ── Tabs ───────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.75em var(--space-4);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--duration-fast),
+    border-color var(--duration-fast);
+}
+
+.tab:hover {
+  color: var(--color-text-primary);
+}
+
+.tabActive {
+  color: var(--color-accent) !important;
+  border-bottom-color: var(--color-accent) !important;
+}
+
+.tabIcon {
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+
+/* ── Docs ───────────────────────────────────────────── */
+
+.docsContent {
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+  padding-top: var(--space-6);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  letter-spacing: 0.02em;
+}
+
+/* ── Endpoint / Protocol Box ────────────────────────── */
+
+.endpointBox {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  overflow: hidden;
+}
+
+/* Top row */
+
+.endpointRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.methodBadge {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-accent);
+  background: rgba(34, 240, 120, 0.1);
+  border: 1px solid rgba(34, 240, 120, 0.22);
+  padding: 0.24em 0.62em;
+}
+
+.copyBtn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-accent);
+
+  padding: 0.25em 0.45em;
+
+  transition:
+    color var(--duration-fast),
+    background var(--duration-fast);
+}
+
+.copyBtn:hover {
+  color: var(--color-accent);
+  background: rgba(34, 240, 120, 0.05);
+}
+
+/* ── Table ──────────────────────────────────────────── */
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  white-space: nowrap;
+
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--color-text-primary);
+
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.table td {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  vertical-align: middle;
+
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.paramName {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.typeTag {
+  display: inline-flex;
+  align-items: center;
+
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle);
+
+  padding: 0.18em 0.45em;
+  white-space: nowrap;
+}
+
+.requiredCell {
+  white-space: nowrap;
+}
+
+.descCell {
+  line-height: 1.6;
+}
+
+/* ── Protocol Address ───────────────────────────────── */
+
+.protocolAddress {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+/* ── Code Block ─────────────────────────────────────── */
+
+.codeBlock {
+  margin: 0;
+  overflow-x: auto;
+
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-strong);
+
+  padding: var(--space-6);
+
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.8;
+  color: var(--color-accent);
+
+  white-space: pre;
+}
+
+.codeBlock code {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* ── Empty State ────────────────────────────────────── */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  gap: var(--space-4);
+  padding: 100px var(--space-8);
+}
+
+.emptyIcon {
+  font-size: 2rem;
+  color: var(--color-text-faint);
+}
+
+.emptyTitle {
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+
+  color: var(--color-text-primary);
+}
+
+.emptySubtitle {
+  max-width: 340px;
+  margin: 0;
+
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  line-height: 1.7;
+
+  color: var(--color-text-muted);
+}
+
+.connectBtn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  cursor: pointer;
+
+  padding: 0.8em 1.8em;
+
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+
+  color: var(--color-text-primary);
+
+  transition:
+    border-color var(--duration-fast),
+    background var(--duration-fast);
+}
+
+.connectBtn:hover {
+  border-color: var(--color-accent);
+  background: rgba(34, 240, 120, 0.05);
+}
+
+/* ── Price Card ─────────────────────────────────────── */
+
+.priceCardWrap {
+  position: sticky;
+  top: 32px;
+  align-self: start;
+}
+
+.priceCard {
+  width: 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 15, 12, 0.98) 0%,
+    rgba(8, 14, 11, 1) 100%
+  );
+
+  border: 1px solid rgba(34, 240, 120, 0.14);
+
+  padding: 28px 24px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Price */
+
+.priceRow {
+  display: flex;
+  flex-direction: column;
+}
+
+.priceDisplay {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.priceValue {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--color-accent);
+}
+
+.priceUnit {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary);
+}
+
+/* Feature list */
+
+.featureList {
+  list-style: none;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  margin: 0;
+  padding: 24px 0;
+
+  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.featureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  line-height: 1.6;
+
+  color: var(--color-text-muted);
+}
+
+.featureCheck {
+  flex-shrink: 0;
+  margin-top: 3px;
+
+  color: var(--color-accent);
+  font-size: 0.72rem;
+}
+
+/* CTA */
+
+.playgroundBtn {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+
+  padding: 1em 1.2em;
+
+  background: var(--color-accent);
+  color: var(--color-text-dark);
+
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+
+  transition:
+    transform var(--duration-fast),
+    box-shadow var(--duration-fast),
+    background var(--duration-fast);
+}
+
+.playgroundBtn:hover {
+  transform: translateY(-1px);
+  background: #42ff9f;
+  box-shadow: 0 0 24px rgba(34, 240, 120, 0.28);
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .priceCardWrap {
+    position: static;
+    width: 100%;
+  }
+
+  .priceCard {
+    max-width: 420px;
+  }
+}
+
+@media (max-width: 900px) {
+  .body {
+    margin-left: 0;
+    padding-inline: var(--space-6);
+  }
+}
+
+@media (max-width: 768px) {
+  .body {
+    padding-inline: var(--space-4);
+    padding-bottom: 80px;
+  }
+
+  .table th,
+  .table td {
+    padding: 12px;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .desc {
+    font-size: 0.9rem;
+  }
+
+  .priceCard {
+    max-width: 100%;
+  }
+}

@@ -1,0 +1,288 @@
+/* ============================================================
+   TECHNICAL APPROACH SECTION
+   ============================================================ */
+
+.section {
+  position: relative;
+  background: var(--color-bg-base);
+  z-index: 1;
+  /* overflow:hidden only on beamWrap, not here —
+     so beams can escape to full viewport width    */
+}
+
+/* ── Main grid ──────────────────────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: var(--space-16);
+  align-items: start;
+  padding-inline: var(--container-padding);
+  padding-block: var(--space-24);
+}
+
+/* ── Left column ────────────────────────────────────── */
+
+.left {
+  position: sticky;
+  top: calc(var(--nav-height) + var(--space-8));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.badgeLine {
+  display: block;
+  width: 28px;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.badgeText {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 3.2vw, 2.6rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.body {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: var(--color-text-muted);
+  max-width: 320px;
+  margin: 0;
+}
+
+/* ── Right column — steps ───────────────────────────── */
+
+.right {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block: var(--space-8);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.step:first-child { padding-top: 0; }
+.step:last-child  { border-bottom: none; }
+
+.stepHeader {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
+}
+
+.stepNum {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-faint);
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+  width: 20px;
+}
+
+.stepTitle {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.stepBody {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  line-height: 1.8;
+  color: var(--color-text-muted);
+  margin: 0;
+  padding-left: calc(20px + var(--space-6));
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  color: var(--color-accent);
+  background: rgba(34, 240, 120, 0.07);
+  border: 1px solid rgba(34, 240, 120, 0.14);
+  padding: 0.1em 0.45em;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   BEAM FOOTER
+   Full viewport width — escapes all container padding.
+   Scroll-driven lighting via --scroll-boost and --scroll-scale
+   CSS custom properties injected by the rAF loop in TSX.
+   ============================================================ */
+
+.beamWrap {
+  position: relative;
+  /* Height of the visible beam window */
+  height: 460px;
+  overflow: hidden;
+  pointer-events: none;
+  /* Negative margin cancels any inherited horizontal spacing */
+  margin-inline: 0;
+  width: 100vw;
+  /* Escape the section's padding by pulling left to viewport edge */
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+}
+
+/* ── Beam container — true full viewport ────────────── */
+
+.beams {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  /* Taller than the wrap so only tops are visible */
+  height: 900px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 !important;
+  margin:  0 !important;
+}
+
+/* ── Individual beam ────────────────────────────────── */
+
+.beam {
+  display: block;
+  flex: 1;
+  min-width: 8px;
+  max-width: 26px;
+
+  /* Physical beam height — extends below the visible wrap */
+  height: 780px;
+
+  border-radius: 60px 60px 0 0;
+  transform-origin: bottom center;
+
+  /*
+    --center-dist  : 0..1 baked in JSX
+    --scroll-boost : 0..1 injected by rAF (scroll progress)
+    --scroll-scale : 0.4..1 injected by rAF (grows upward on scroll)
+
+    Combined opacity: base + scroll contribution
+  */
+  --base-opacity:   calc(0.03 + var(--center-dist, 0) * 0.18);
+  --final-opacity:  calc(var(--base-opacity) + var(--scroll-boost, 0) * 0.62);
+
+  background: linear-gradient(
+    to top,
+    rgba(20, 230, 100, calc(var(--final-opacity) * 1.0))   0%,
+    rgba(10, 200, 80,  calc(var(--final-opacity) * 0.55))  22%,
+    rgba(5,  160, 60,  calc(var(--final-opacity) * 0.20))  50%,
+    rgba(0,  100, 40,  calc(var(--final-opacity) * 0.05))  74%,
+    transparent 100%
+  );
+
+  /* Scroll drives scaleY — beams grow from bottom upward */
+  transform: scaleY(var(--scroll-scale, 0.4));
+
+  /* Smooth response to rAF updates */
+  transition:
+    transform  600ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Height rhythm — irregular tops */
+.beam:nth-child(3n)   { height: 720px; }
+.beam:nth-child(3n+1) { height: 820px; }
+.beam:nth-child(3n+2) { height: 900px; }
+
+/* ── Glow pool at base ──────────────────────────────── */
+
+.beamGlow {
+  position: absolute;
+  bottom: -40px;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 200px;
+  background: radial-gradient(
+    ellipse 55% 100% at 50% 100%,
+    rgba(20, 255, 110, 0.12) 0%,
+    rgba(10, 200, 80,  0.04) 45%,
+    transparent 80%
+  );
+  filter: blur(10px);
+  z-index: 1;
+}
+
+/* ── Top fade — dissolves beam tips into section bg ─── */
+
+.beamFade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 55%;
+  background: linear-gradient(
+    to bottom,
+    var(--color-bg-base)        0%,
+    rgba(8, 12, 10, 0.88)       35%,
+    rgba(8, 12, 10, 0.40)       65%,
+    transparent                 100%
+  );
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-12);
+  }
+
+  .left {
+    position: static;
+  }
+
+  .body {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .beam     { min-width: 6px; max-width: 14px; }
+  .beamWrap { height: 220px; }
+}

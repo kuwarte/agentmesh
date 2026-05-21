@@ -1,0 +1,247 @@
+/* ============================================================
+   APP SIDEBAR — used on marketplace detail + providers pages
+   ============================================================ */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 220px;
+  height: 100vh;
+  background: var(--color-bg-base);
+  border-right: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  padding: var(--space-6);
+}
+
+/* ── Logo ───────────────────────────────────────────── */
+
+.logoWrap {
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin-bottom: var(--space-6);
+}
+
+.logoText {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+/* ── Nav ────────────────────────────────────────────── */
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.6em var(--space-3);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition:
+    background var(--duration-fast),
+    color      var(--duration-fast);
+}
+
+.navItem:hover {
+  background: rgba(34, 240, 120, 0.05);
+  color: var(--color-text-primary);
+}
+
+.navActive {
+  background: rgba(34, 240, 120, 0.08) !important;
+  color: var(--color-accent) !important;
+}
+
+.navIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.navActive .navIcon {
+  opacity: 1;
+  color: var(--color-accent);
+}
+
+/* ── Bottom actions ─────────────────────────────────── */
+
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* Be a Provider */
+.providerBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.6em var(--space-3);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border: 1px solid var(--color-border-subtle);
+  background: transparent;
+  transition:
+    border-color var(--duration-fast),
+    color        var(--duration-fast),
+    background   var(--duration-fast);
+}
+
+.providerBtn:hover {
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+  background: rgba(34, 240, 120, 0.03);
+}
+
+/* Connect Wallet */
+.walletBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0.7em var(--space-3);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast),
+    background   var(--duration-fast),
+    box-shadow   var(--duration-fast);
+}
+
+.walletBtn:hover {
+  border-color: var(--color-accent);
+  background: rgba(34, 240, 120, 0.05);
+  box-shadow: 0 0 12px rgba(34, 240, 120, 0.1);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-decoration: none;
+}
+
+.logoImage {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.logoText {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.walletConnected {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+
+  padding: 0.7em var(--space-3);
+
+  background: rgba(34, 240, 120, 0.08);
+  border: 1px solid rgba(34, 240, 120, 0.18);
+
+  color: var(--color-accent);
+
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast),
+    border-color var(--duration-fast);
+}
+
+.walletConnected:hover {
+  background: rgba(34, 240, 120, 0.12);
+  border-color: rgba(34, 240, 120, 0.3);
+}
+
+.walletDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-accent);
+
+  box-shadow: 0 0 12px rgba(34, 240, 120, 0.7);
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .sidebar {
+    display: none;
+  }
+}
+/* ── Disconnect Wallet button ────────────────────────── */
+
+.disconnectBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0.7em var(--space-3);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast),
+    color var(--duration-fast),
+    background var(--duration-fast);
+}
+
+.disconnectBtn:hover {
+  border-color: rgba(255, 60, 60, 0.35);
+  color: #ff6060;
+  background: rgba(255, 60, 60, 0.05);
+}
+
+/* ── Sidebar hint (not connected state) ──────────────── */
+
+.sidebarHint {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--color-text-faint);
+  text-align: center;
+  padding: var(--space-3);
+  line-height: 1.5;
+}
