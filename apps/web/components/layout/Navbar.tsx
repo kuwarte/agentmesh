@@ -7,7 +7,7 @@ import styles from "./Navbar.module.css";
 
 const NAV_LINKS = [
   { label: "Marketplace", href: "marketplace" },
-  { label: "Providers", href: "providers" },
+  { label: "Provider", href: "provider" },
 ];
 
 export default function Navbar() {
@@ -33,7 +33,6 @@ export default function Navbar() {
         className={`nav ${styles.header} ${scrolled ? styles.scrolled : ""}`}
       >
         <div className="nav__inner">
-          
           {/* ── Left Side: Logo ───────────────────────────── */}
           <Link href="/" className={styles.logo}>
             <Image
@@ -49,7 +48,6 @@ export default function Navbar() {
 
           {/* ── Right Side: Tabs & Mobile Menu ────────────── */}
           <div className={styles.actions}>
-            
             <nav className="nav__links">
               {NAV_LINKS.map((l) => (
                 <Link key={l.label} href={l.href} className="nav__link">
@@ -73,7 +71,6 @@ export default function Navbar() {
                 className={`${styles.bar} ${menuOpen ? styles.barBotOpen : ""}`}
               />
             </button>
-            
           </div>
         </div>
       </header>

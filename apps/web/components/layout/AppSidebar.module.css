@@ -167,14 +167,14 @@
   justify-content: center;
   gap: 0.6rem;
 
-  padding: 0.95rem 1rem;
+  padding: 0.7em var(--space-3);
 
   background: rgba(34, 240, 120, 0.08);
   border: 1px solid rgba(34, 240, 120, 0.18);
 
   color: var(--color-accent);
 
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -206,4 +206,42 @@
   .sidebar {
     display: none;
   }
+}
+/* ── Disconnect Wallet button ────────────────────────── */
+
+.disconnectBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0.7em var(--space-3);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast),
+    color var(--duration-fast),
+    background var(--duration-fast);
+}
+
+.disconnectBtn:hover {
+  border-color: rgba(255, 60, 60, 0.35);
+  color: #ff6060;
+  background: rgba(255, 60, 60, 0.05);
+}
+
+/* ── Sidebar hint (not connected state) ──────────────── */
+
+.sidebarHint {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--color-text-faint);
+  text-align: center;
+  padding: var(--space-3);
+  line-height: 1.5;
 }

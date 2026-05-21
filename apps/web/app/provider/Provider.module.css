@@ -1,0 +1,599 @@
+/* =========================================================
+   PROVIDER DASHBOARD — REFINED
+   ========================================================= */
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background: #020504;
+}
+
+.content {
+  flex: 1;
+  margin-left: 220px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(34, 240, 120, 0.04),
+      transparent 30%
+    ),
+    #020504;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  color: #f5f7f6;
+  margin: 0;
+  line-height: 1;
+}
+
+.walletId {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #22f078;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+
+/* KEEP POSITION SAME */
+.registerBtn {
+  background: #22f078;
+  color: #02150a;
+  border: none;
+  height: 42px;
+  padding: 0 18px;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 180ms ease;
+}
+
+.registerBtn:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 18px rgba(34, 240, 120, 0.3);
+}
+
+/* =========================================================
+   BALANCE CARD
+   ========================================================= */
+
+.balanceCard {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(34, 240, 120, 0.28);
+  background:
+    radial-gradient(
+      circle at 85% 50%,
+      rgba(80, 255, 160, 0.45),
+      transparent 22%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(10, 20, 14, 1) 0%,
+      rgba(8, 16, 12, 1) 50%,
+      rgba(12, 34, 20, 1) 100%
+    );
+
+  padding: 20px;
+  min-height: 140px;
+}
+
+.balanceCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(34, 240, 120, 0.03),
+    transparent
+  );
+  pointer-events: none;
+}
+
+.balanceLabel {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 18px;
+}
+
+.balanceValue {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-family: var(--font-body);
+}
+
+.balanceCurrency {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+}
+
+.balanceTrend {
+  margin-top: 16px;
+  color: var(--color-accent);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+}
+
+/* =========================================================
+   STATS
+   ========================================================= */
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.statCard {
+  background: #050908;
+  border: 1px solid rgba(34, 240, 120, 0.2);
+  min-height: 130px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.statLabel {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-family: var(--font-body);
+  letter-spacing: 0.04em;
+}
+
+.statValue {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--color-text-primary);
+}
+
+.statSubtext {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-family: var(--font-body);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  background: rgba(34, 240, 120, 0.12);
+  border: 1px solid rgba(34, 240, 120, 0.18);
+  padding: 4px 8px;
+  color: var(--color-accent);
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+}
+
+/* =========================================================
+   MAIN GRID
+   ========================================================= */
+
+.mainGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+
+.chartCard,
+.endpointsCard,
+.tableCard,
+.breakdownCard {
+  background: #050908;
+  border: 1px solid rgba(34, 240, 120, 0.18);
+}
+
+/* =========================================================
+   CHART CARD
+   ========================================================= */
+
+.chartCard {
+  padding: 18px;
+}
+
+.chartSub {
+  font-size: 0.85rem;
+  color: #93a39b;
+}
+
+.chartVal {
+  margin-top: 10px;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #f7faf8;
+  letter-spacing: -0.04em;
+}
+
+.chartWrap {
+  height: 300px;
+  margin-top: 20px;
+}
+
+/* =========================================================
+   ENDPOINTS
+   ========================================================= */
+
+.endpointsCard {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #f3f6f4;
+  margin-bottom: 20px;
+}
+
+.titleBadge {
+  background: rgba(34, 240, 120, 0.14);
+  color: #22f078;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+}
+
+.endpointsList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.endpointRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(34, 240, 120, 0.08);
+}
+
+.endpointName {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: #f3f6f4;
+}
+
+.endpointPrice {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: #6f8279;
+  font-family: var(--font-mono);
+}
+
+.endpointEarned {
+  color: #22f078;
+  font-weight: 700;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.tableCard {
+  padding: 18px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  padding: 14px 0;
+  font-size: 0.72rem;
+  color: #708078;
+  border-bottom: 1px solid rgba(34, 240, 120, 0.1);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+
+.table td {
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: #e8eeeb;
+  font-size: 0.85rem;
+}
+
+.typeBadge {
+  padding: 4px 8px;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  border: 1px solid rgba(34, 240, 120, 0.25);
+  color: #22f078;
+  background: rgba(34, 240, 120, 0.08);
+}
+
+/* =========================================================
+   BREAKDOWN
+   ========================================================= */
+
+.breakdownCard {
+  padding: 18px;
+}
+
+.breakdownTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.toggleGroup {
+  display: flex;
+  gap: 6px;
+}
+
+.toggleBtn {
+  border: 1px solid rgba(34, 240, 120, 0.18);
+  background: transparent;
+  color: #708078;
+  padding: 6px 10px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.toggleActive {
+  background: rgba(34, 240, 120, 0.12);
+  color: #22f078;
+}
+
+.breakdownRow {
+  margin-bottom: 18px;
+}
+
+.breakdownLabelRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+  color: #dfe6e2;
+}
+
+.progressTrack {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.progressFill {
+  height: 100%;
+  background: #22f078;
+}
+
+.breakdownTotal {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(34, 240, 120, 0.1);
+  display: flex;
+  justify-content: space-between;
+  color: #eef3f0;
+}
+
+.totalVal {
+  color: #22f078;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+/* =========================================================
+   CONNECT MODAL
+   ========================================================= */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.modal {
+  width: 100%;
+  max-width: 480px;
+
+  background:
+    radial-gradient(circle at top right, rgba(34,240,120,0.06), transparent 35%),
+    #050908;
+
+  border: 1px solid rgba(34,240,120,0.22);
+
+  padding: 36px;
+  position: relative;
+
+  box-shadow:
+    0 0 0 1px rgba(34,240,120,0.06),
+    0 30px 80px rgba(0,0,0,0.7);
+}
+
+.modal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(34,240,120,0.03),
+      transparent 40%
+    );
+  pointer-events: none;
+}
+
+.modalIcon {
+  width: 58px;
+  height: 58px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid rgba(34,240,120,0.2);
+  background: rgba(34,240,120,0.05);
+
+  color: #22f078;
+
+  margin-bottom: 24px;
+}
+
+.modalTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #f4f7f5;
+  margin-bottom: 14px;
+}
+
+.modalDesc {
+  color: #8a9992;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+
+.modalList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  margin-bottom: 32px;
+  padding-bottom: 28px;
+
+  border-bottom: 1px solid rgba(34,240,120,0.08);
+}
+
+.modalListItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  color: #c5d0cb;
+  font-size: 0.84rem;
+}
+
+.listDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #22f078;
+  box-shadow: 0 0 12px rgba(34,240,120,0.8);
+  flex-shrink: 0;
+}
+
+.modalConnectBtn {
+  width: 100%;
+  height: 52px;
+
+  background: #22f078;
+  color: #02150a;
+
+  border: none;
+
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-body);
+
+  cursor: pointer;
+
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+
+.modalConnectBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow: 0 0 24px rgba(34,240,120,0.35);
+}
+
+.modalConnectBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.modalFooter {
+  display: block;
+  margin-top: 18px;
+
+  text-align: center;
+
+  color: #617069;
+  font-size: 0.68rem;
+  font-family: var(--font-body);
+  letter-spacing: 0.06em;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  .mainGrid,
+  .bottomGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .content {
+    margin-left: 0;
+    padding: 18px;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .title {
+    font-size: 2.4rem;
+  }
+
+  .balanceValue {
+    font-size: 2.5rem;
+  }
+}
