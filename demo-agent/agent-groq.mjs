@@ -25,6 +25,8 @@ const C = {
 	yellow: "\x1b[33m",
 	red: "\x1b[31m",
 	magenta: "\x1b[35m",
+	blue: "\x1b[34m",
+	gray: "\x1b[90m",
 	reverse: "\x1b[7m",
 };
 
@@ -33,7 +35,7 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 const envPath = resolve(__dir, ".env");
 
 if (!existsSync(envPath)) {
-	console.error(`${C.red}[FAIL] .env setup file missing.${C.reset}`);
+	console.error(`${C.red}[fail] .env setup file missing.${C.reset}`);
 	process.exit(1);
 }
 
@@ -54,67 +56,102 @@ const GROQ_KEY = env.GROQ_API_KEY;
 const AGENT_KEY = env.AGENT_PRIVATE_KEY || env.GATEWAY_PRIVATE_KEY;
 const FACILITATOR = env.FACILITATOR_ADDRESS || env.X402_FACILITATOR_ADDRESS;
 const TASK = process.argv[2] || env.AGENT_TASK || "Perform a crypto market analysis";
-const DEBUG = env.DEBUG === "true"; // 👈 enable debug logging
+const DEBUG = env.DEBUG === "true";
 
 if (!GROQ_KEY || GROQ_KEY === "your_groq_api_key_here") {
-	console.error(`${C.red}[FAIL] GROQ_API_KEY unassigned.${C.reset}`);
+	console.error(`${C.red}[fail] GROQ_API_KEY unassigned.${C.reset}`);
 	process.exit(1);
 }
 if (!AGENT_KEY || AGENT_KEY.startsWith("your_")) {
-	console.error(`${C.red}[FAIL] AGENT_PRIVATE_KEY unassigned.${C.reset}`);
+	console.error(`${C.red}[fail] AGENT_PRIVATE_KEY unassigned.${C.reset}`);
 	process.exit(1);
 }
 if (!FACILITATOR || FACILITATOR.startsWith("your_")) {
-	console.error(`${C.red}[FAIL] FACILITATOR_ADDRESS unassigned.${C.reset}`);
+	console.error(`${C.red}[fail] FACILITATOR_ADDRESS unassigned.${C.reset}`);
 	process.exit(1);
 }
 
 const agentWallet = new ethers.Wallet(AGENT_KEY);
 const AGENT_ADDR = agentWallet.address;
 
-// ---------- TUI helpers ----------
+// ---------- TUI helpers (cyan lines, lowercase tags, consistent colors) ----------
 const phase = (title) => {
 	console.log(
 		`\n${C.bold}${C.cyan}[#]========================================================================[ ${title} ]${C.reset}`
 	);
 };
 
+// Tag-to-color mapping (lowercase keys)
+const tagColors = {
+	addr: C.cyan,
+	core: C.cyan,
+	gate: C.cyan,
+	" ok ": C.green,
+	netw: C.yellow,
+	" bal ": C.green,
+	exec: C.cyan,
+	hash: C.magenta,
+	amnt: C.green,
+	warn: C.yellow,
+	note: C.dim,
+	intn: C.bold,
+	cost: C.green,
+	args: C.gray,
+	nonc: C.gray,
+	data: C.gray,
+	setl: C.green,
+	fail: C.red,
+	debg: C.gray,
+	apis: C.cyan,
+	humn: C.green,
+	dash: C.cyan,
+	expl: C.cyan,
+	obj: C.yellow,
+};
+
+// Tag display names (lowercase, fixed width 5 characters)
+const sysTags = {
+	addr: `[addr]`,
+	core: `[core]`,
+	gate: `[gate]`,
+	" ok ": `[ ok ]`,
+	netw: `[netw]`,
+	" bal ": `[ bal ]`,
+	exec: `[exec]`,
+	hash: `[hash]`,
+	amnt: `[amnt]`,
+	warn: `[warn]`,
+	note: `[note]`,
+	intn: `[intn]`,
+	cost: `[cost]`,
+	args: `[args]`,
+	nonc: `[ nonce ]`,
+	data: `[data]`,
+	setl: `[setl]`,
+	fail: `[fail]`,
+	debg: `[ debug ]`,
+	apis: `[apis]`,
+	humn: `[humn]`,
+	dash: `[dash]`,
+	expl: `[expl]`,
+	obj: `[ obj ]`,
+};
+
 const print = (tag, msg, color = C.reset) => {
-	const sysTags = {
-		wallet: `[ADDR]`,
-		model: `[CORE]`,
-		gateway: `[GATE]`,
-		status: `[ OK ]`,
-		chain: `[NETW]`,
-		balance: `[ BAL ]`,
-		action: `[EXEC]`,
-		txHash: `[HASH]`,
-		amount: `[AMNT]`,
-		warn: `[WARN]`,
-		note: `[NOTE]`,
-		intent: `[INTN]`,
-		price: `[COST]`,
-		args: `[ARGS]`,
-		nonce: `[NONC]`,
-		data: `[DATA]`,
-		settle: `[SETL]`,
-		error: `[FAIL]`,
-		debug: `[DEBG]`,
-	};
-	const prefix = sysTags[tag] || `[${tag.toUpperCase().padEnd(4)}]`;
-	let finalColor = C.reset;
-	if (tag === "error" || tag === "warn") finalColor = C.red;
-	if (tag === "status" || tag === "balance") finalColor = C.green;
-	if (tag === "debug") finalColor = C.dim; // dim for debug lines
-	console.log(`${C.dim} │ ${C.reset}${finalColor}${prefix}${C.reset} ${color}${msg}${C.reset}`);
+	const prefix = sysTags[tag] || `[${tag.toLowerCase().padEnd(4)}]`;
+	let tagColor = tagColors[tag] || C.reset;
+	// For debug, force message color to gray as well
+	let msgColor = color;
+	if (tag === "debg") msgColor = C.gray;
+	console.log(`${C.cyan} │ ${C.reset}${tagColor}${prefix}${C.reset} ${msgColor}${msg}${C.reset}`);
 };
 
 const executeTask = async (msg, taskFn) => {
-	const frames = ["---", "#--", "##-", "###", "-##", "--#"];
+	const frames = ["----", "#---", "##--", "###-", "-##-", "--##"];
 	let idx = 0;
 	const interval = setInterval(() => {
 		process.stdout.write(
-			`\r ${C.dim}│${C.reset} ${C.cyan}[${frames[idx % frames.length]}]${C.reset} [TASK] ${msg}...`
+			`\r ${C.cyan}│${C.reset} ${C.cyan}[${frames[idx % frames.length]}]${C.reset} [task] ${msg}...`
 		);
 		idx++;
 	}, 100);
@@ -122,13 +159,13 @@ const executeTask = async (msg, taskFn) => {
 		const result = await taskFn();
 		clearInterval(interval);
 		process.stdout.write(
-			`\r ${C.dim}│${C.reset} ${C.green}[ OK ]${C.reset} [TASK] ${msg}... Done.\n`
+			`\r ${C.cyan}│${C.reset} ${C.green}[ ok ]${C.reset} [task] ${msg}... Done.\n`
 		);
 		return result;
 	} catch (error) {
 		clearInterval(interval);
 		process.stdout.write(
-			`\r ${C.dim}│${C.reset} ${C.red}[FAIL]${C.reset} [TASK] ${msg}... Error encountered.\n`
+			`\r ${C.cyan}│${C.reset} ${C.red}[fail]${C.reset} [task] ${msg}... Error encountered.\n`
 		);
 		throw error;
 	}
@@ -136,16 +173,23 @@ const executeTask = async (msg, taskFn) => {
 
 const pause = (ms = 2000) => new Promise((r) => setTimeout(r, ms));
 
+// ---------- Balance helper (reusable) ----------
+async function fetchBalance() {
+	const res = await debugFetch(`${GATEWAY}/payment/balance/${AGENT_ADDR}`);
+	const data = await res.json();
+	return data.usdcBalance;
+}
+
 // ---------- Debug HTTP wrapper ----------
 async function debugFetch(url, options = {}) {
 	const method = options.method || "GET";
 	if (DEBUG) {
-		print("debug", `${method} ${url}`, C.dim);
+		print("debg", `${method} ${url}`, C.dim);
 	}
 	const res = await fetch(url, options);
 	if (DEBUG) {
 		const statusColor = res.ok ? C.green : C.red;
-		print("debug", `→ ${res.status} ${res.statusText}`, statusColor);
+		print("debg", `→ ${res.status} ${res.statusText}`, statusColor);
 	}
 	return res;
 }
@@ -174,11 +218,11 @@ function buildXPayment(provider, amount, nonce, deadline, signature) {
 }
 
 async function callPaidAPI(callUrl, provider, amount, args = {}) {
-	const { nonce, deadline } = await executeTask("Requesting secure network nonce", async () => {
+	const { nonce, deadline } = await executeTask("requesting secure network nonce", async () => {
 		const res = await debugFetch(`${GATEWAY}/payment/nonce`);
 		return res.json();
 	});
-	const signature = await executeTask("Signing off-chain payment voucher", () =>
+	const signature = await executeTask("signing off-chain payment voucher", () =>
 		signPayment(provider, amount, nonce, deadline)
 	);
 	const xPayment = buildXPayment(provider, amount, nonce, deadline, signature);
@@ -193,7 +237,7 @@ async function callPaidAPI(callUrl, provider, amount, args = {}) {
 		delete cleanedArgs._call;
 		fetchOptions.body = JSON.stringify(cleanedArgs);
 	}
-	return executeTask("Sending payment signature to API endpoint", async () => {
+	return executeTask("sending payment signature to API endpoint", async () => {
 		const res = await debugFetch(fullUrl, fetchOptions);
 		const body = await res.json();
 		return { status: res.status, body, nonce };
@@ -212,6 +256,10 @@ function catalogToTools(catalog) {
 		else if (nameLower.includes("dog fact"))
 			desc = "Returns a random dog fact. Costs $" + api.priceUsd;
 		else if (nameLower.includes("joke")) desc = "Returns a random joke. Costs $" + api.priceUsd;
+		else if (nameLower.includes("random activity"))
+			desc =
+				"Returns a random activity suggestion (e.g., 'Go for a walk'). Costs $" +
+				api.priceUsd;
 		else desc = `${api.description || api.name}. Costs $${api.priceUsd} USDC per call.`;
 
 		return {
@@ -248,7 +296,7 @@ const MODEL = "llama-3.3-70b-versatile";
 const SYSTEM_PROMPT = `You are an autonomous agent on Morph L2.
 Your only job is to map the user's request to the most relevant tool from the provided list.
 - Examine every tool’s **name** and **description** carefully.
-- Choose the tool that matches the user’s keywords exactly.
+- Choose the tool whose name or description best matches the user's intent, even if wording differs slightly.
 - Example: if the user says "cat facts", pick the tool whose name or description contains "cat" or "cat fact".
 - If no tool matches, say so – but you must look at **all** tools before giving up.
 - Call the chosen tool with an empty object {} if it requires no arguments.
@@ -256,50 +304,56 @@ Your only job is to map the user's request to the most relevant tool from the pr
 
 // ====================== MAIN ======================
 console.clear();
-console.log(`${C.reverse}${C.bold} x402AgentPayer ${C.reset}\n`);
-
-phase("AGENT SETUP PROFILE");
-print("wallet", AGENT_ADDR, C.bold);
-print("model", MODEL + " (via Groq)");
-print("gateway", GATEWAY);
-if (DEBUG) print("debug", "Debug logging ENABLED", C.yellow);
+console.log(`${C.cyan}
+ ███████████                     █████                        
+ ░░███░░░░░███                   ░░███                         
+  ░███    ░███ ████████   ██████  ░███ █████  ██████  ████████ 
+  ░██████████ ░░███░░███ ███░░███ ░███░░███  ███░░███░░███░░███
+  ░███░░░░░███ ░███ ░░░ ░███ ░███ ░██████░  ░███████  ░███ ░░░ 
+  ░███    ░███ ░███     ░███ ░███ ░███░░███ ░███░░░   ░███     
+  ███████████  █████    ░░██████  ████ █████░░██████  █████    
+ ░░░░░░░░░░░  ░░░░░      ░░░░░░  ░░░░ ░░░░░  ░░░░░░  ░░░░░
+${C.reset}`);
+phase("AGENT PROFILE");
+print("addr", AGENT_ADDR, C.bold);
+print("core", MODEL + " (via Groq)");
+print("gate", GATEWAY);
+if (DEBUG) print("debg", "Debug logging ENABLED", C.yellow);
 await pause();
 
 // Phase 1 – Catalog
-phase("01 / SERVICE REGISTRY DISCOVERY");
-const catalogResData = await executeTask("Fetching marketplace catalog", async () => {
+phase("REGISTRY DISCOVERY");
+const catalogResData = await executeTask("fetching marketplace catalog", async () => {
 	const res = await debugFetch(`${GATEWAY}/api/v1/catalog`);
 	if (!res.ok) throw new Error();
 	return res.json();
 }).catch(() => {
 	console.log("");
-	print("error", "Gateway response failed. Make sure the backend app is running.");
+	print("fail", "Gateway response failed. Make sure the backend app is running.");
 	process.exit(1);
 });
 const { catalog, payment: meta } = catalogResData;
-print("status", `${catalog.length} services found`);
-print("chain", `Facilitator: ${meta.facilitator}`);
-console.log(` ${C.dim}│`);
-console.log(` ${C.dim}├───[ MARKETPLACE PRICE MENU ]`);
+print(" ok ", `${catalog.length} services found`);
+print("netw", `Facilitator: ${meta.facilitator}`);
+console.log(` ${C.cyan}│`);
+console.log(` ${C.cyan}├───[ MARKETPLACE PRICE MENU ]`);
 for (const api of catalog) {
 	console.log(
-		` ${C.dim}│     :: ${api.name.padEnd(28)} -> ${C.green}${parseFloat(api.priceUsd).toFixed(4)} USDC/Call${C.reset}`
+		` ${C.cyan}│     :: ${api.name.padEnd(28)} -> ${C.green}${parseFloat(api.priceUsd).toFixed(4)} USDC/Call${C.reset}`
 	);
 }
 await pause();
 
-// Phase 2 – Wallet balance
-phase("02 / ACCOUNT WALLET CHECK");
-const balanceData = await executeTask("Checking wallet USDC balance", async () => {
-	const res = await debugFetch(`${GATEWAY}/payment/balance/${AGENT_ADDR}`);
-	return res.json();
+// Phase 2 – Wallet balance (initial)
+phase("ACCOUNT WALLET");
+let currentBalance = await executeTask("checking wallet USDC balance", async () => {
+	return await fetchBalance();
 });
-const { usdcBalance } = balanceData;
-print("balance", `${usdcBalance} USDC`);
+print(" bal ", `${currentBalance} USDC`);
 
-if (parseFloat(usdcBalance) === 0) {
-	print("action", "USDC balance empty. Triggering faucet...");
-	const mintBody = await executeTask("Requesting test tokens from faucet", async () => {
+if (parseFloat(currentBalance) === 0) {
+	print("exec", "USDC balance empty. Triggering faucet...");
+	const mintBody = await executeTask("requesting test tokens from faucet", async () => {
 		const res = await debugFetch(`${GATEWAY}/faucet/mint`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -308,9 +362,12 @@ if (parseFloat(usdcBalance) === 0) {
 		return res.json();
 	});
 	if (mintBody.txHash) {
-		print("status", "Tokens added");
-		print("amount", `${mintBody.amount} USDC`);
-		print("txHash", mintBody.txHash);
+		print(" ok ", "Tokens added");
+		print("amnt", `${mintBody.amount} USDC`);
+		print("hash", mintBody.txHash);
+		// Refresh balance after faucet
+		currentBalance = await fetchBalance();
+		print(" bal ", `${currentBalance} USDC (after faucet)`);
 	} else {
 		print("warn", "Faucet rejected or timed out – continuing anyway");
 	}
@@ -318,9 +375,9 @@ if (parseFloat(usdcBalance) === 0) {
 await pause();
 
 // Phase 3 – AI planning
-phase("03 / AGENT ROUTING & PLANNING");
-console.log(` ${C.dim}│ [JOB ] Assigned Objective:`);
-console.log(` ${C.dim}│        "${C.bold}${TASK}${C.reset}"\n`);
+phase("PROCESSING");
+console.log(` ${C.cyan}│ ${C.yellow}[ obj ]${C.reset} Assigned Objective:`);
+console.log(` ${C.cyan}│        ${C.reset}"${C.cyan}${C.bold}${TASK}${C.reset}"\n`);
 
 const tools = catalogToTools(catalog);
 const toolMap = Object.fromEntries(tools.map((t) => [t.function.name, t._meta]));
@@ -330,10 +387,10 @@ const messages = [
 	{ role: "user", content: TASK },
 ];
 
-let response = await executeTask("Sending tools context to AI engine", async () => {
+let response = await executeTask("sending tools context to AI engine", async () => {
 	if (DEBUG)
 		print(
-			"debug",
+			"debg",
 			`POST https://api.groq.com/openai/v1/chat/completions (model: ${MODEL})`,
 			C.dim
 		);
@@ -345,8 +402,8 @@ let response = await executeTask("Sending tools context to AI engine", async () 
 		temperature: 0.0,
 	});
 });
-if (DEBUG) print("debug", `AI response received (status: 200)`, C.green);
-print("status", "AI session initialized");
+if (DEBUG) print("debg", `AI response received (status: 200)`, C.green);
+print(" ok ", "AI session initialized");
 
 // Phase 4 – Tool execution loop
 const results = {};
@@ -379,10 +436,10 @@ while (loopCount < MAX_LOOPS) {
 			continue;
 		}
 
-		console.log(` ${C.dim}│`);
-		console.log(` ${C.dim}├───[ SERVICE DISPATCH LOG #${callNum} ]───`);
-		print("intent", `Calling Tool: ${C.bold}${meta.name}${C.reset}`);
-		print("price", `${(Number(meta.pricePerCall) / 1_000_000).toFixed(6)} USDC`, C.green);
+		console.log(` ${C.cyan}│`);
+		console.log(` ${C.cyan}├───[ SERVICE DISPATCH LOG #${callNum} ]───`);
+		print("intn", `Calling Tool: ${C.bold}${meta.name}${C.reset}`);
+		print("cost", `${(Number(meta.pricePerCall) / 1_000_000).toFixed(6)} USDC`, C.green);
 		if (Object.keys(args).length > 1) print("args", JSON.stringify(args));
 
 		try {
@@ -395,18 +452,18 @@ while (loopCount < MAX_LOOPS) {
 			if (status === 200) {
 				results[meta.name] = body.data;
 				totalSpent += BigInt(meta.pricePerCall);
-				print("status", `API Approved [${status}]`, C.green);
-				print("nonce", nonce);
+				print(" ok ", `API Approved [${status}]`, C.green);
+				print("nonc", nonce);
 				print("data", JSON.stringify(body.data || body));
-				print("settle", "Payment captured");
+				print("setl", "Payment captured");
 				toolResults.push({
 					role: "tool",
 					tool_call_id: id,
 					content: JSON.stringify({ data: body.data || body, success: true }),
 				});
 			} else {
-				print("status", `API Refused [${status}]`, C.red);
-				print("error", String(body.error || "Error status"));
+				print("fail", `API Refused [${status}]`, C.red);
+				print("fail", String(body.error || "Error status"));
 				toolResults.push({
 					role: "tool",
 					tool_call_id: id,
@@ -418,7 +475,7 @@ while (loopCount < MAX_LOOPS) {
 			}
 		} catch (err) {
 			console.log("");
-			print("error", err.message);
+			print("fail", err.message);
 			toolResults.push({
 				role: "tool",
 				tool_call_id: id,
@@ -430,10 +487,10 @@ while (loopCount < MAX_LOOPS) {
 	}
 
 	messages.push(...toolResults);
-	console.log(` ${C.dim}│`);
-	response = await executeTask("Returning data back to AI", async () => {
+	console.log(` ${C.cyan}│`);
+	response = await executeTask("returning data back to AI", async () => {
 		if (DEBUG)
-			print("debug", `POST https://api.groq.com/openai/v1/chat/completions (loop)`, C.dim);
+			print("debg", `POST https://api.groq.com/openai/v1/chat/completions (loop)`, C.dim);
 		return groq.chat.completions.create({
 			model: MODEL,
 			messages,
@@ -442,28 +499,34 @@ while (loopCount < MAX_LOOPS) {
 			temperature: 0.0,
 		});
 	});
-	if (DEBUG) print("debug", `AI response received (status: 200)`, C.green);
+	if (DEBUG) print("debg", `AI response received (status: 200)`, C.green);
 }
 
 // Phase 5 – Final answer
-phase("04 / TASK AGGREGATION & FINAL ANSWER");
+phase("OUTPUT");
+console.log();
 let finalText = "No output.";
 try {
 	if (response.choices?.[0]?.message?.content) {
 		finalText = response.choices[0].message.content;
 	}
 } catch {}
-console.log(`${C.dim}─[ OUTPUT STREAM ]───`);
 console.log(finalText.trim());
-console.log(`${C.dim}───────────────────────`);
+
+// ---------- FINAL BALANCE CHECK (after spending) ----------
+phase("fINAL BALANCE");
+const finalBalance = await executeTask("fetching updated wallet balance", async () => {
+	return await fetchBalance();
+});
+print(" bal ", `${finalBalance} USDC (after payments)`);
 
 phase("RUN METRICS");
-print("APIs called", `${callNum - 1}`, C.bold);
-print("Total spent", `${(Number(totalSpent) / 1_000_000).toFixed(6)} USDC`, C.green);
-print("Human approvals", "0 (Autonomous)", C.cyan);
-print("Model Engine", MODEL + " (Groq)");
+print("apis", `${callNum - 1}`, C.bold);
+print("cost", `${(Number(totalSpent) / 1_000_000).toFixed(6)} USDC total`, C.green);
+print("humn", "0 (autonomous)", C.cyan);
+print("core", MODEL + " (Groq)");
 
-phase("NETWORK VERIFICATION LINKS");
-print("dashboard", `${GATEWAY}/dashboard/${AGENT_ADDR}`, C.cyan);
-print("explorer", "https://explorer-hoodi.morphl2.io", C.cyan);
+phase("NET VERIFICATION");
+print("dash", `${GATEWAY}/dashboard/${AGENT_ADDR}`, C.cyan);
+print("expl", "https://explorer-hoodi.morphl2.io", C.cyan);
 console.log("");
