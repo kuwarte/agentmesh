@@ -9,7 +9,12 @@
  * const result = await agent.run("What is the current BTC price?");
  * console.log(result.answer, result.metrics);
  */
+import { config } from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, ".env") });
 import { ethers } from "ethers";
 import OpenAI from "openai";
 
