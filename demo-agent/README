@@ -4,23 +4,25 @@ DEMO AGENT
 -------------------------------------------------------------------------------------
 SETUP
     1. Install dependencies
-            cd agent
-            npm install
+            cd demo-agent
+            pnpm install   (or npm install)
     2. Configure environment
-            cp .env.example .env
+            # Copy the SDK’s example environment file
+            cp ../packages/x402-agent-sdk/.env.example .env
             # Fill in:
-            #   GROQ_API_KEY         — from https://console.groq.com/keys
             #   AGENT_PRIVATE_KEY    — wallet private key with USDC balance
+            #   GROQ_API_KEY         — from https://console.groq.com/keys
             #   FACILITATOR_ADDRESS  — X402Facilitator contract address
+            #   GATEWAY_URL          — backend URL (default: http://localhost:3001)
             # (optional) DEBUG=true  — enable HTTP request logging
     3. Make sure the backend is running
             cd apps/backend && pnpm dev
-    4. Run the agent
-            node agent-groq.mjs
+    4. Run the agent (using the SDK)
+            node agent.mjs
             # or with a custom task:
-            node agent-groq.mjs "What is the BTC/ETH ratio and is gas cheap right now?"
+            node agent.mjs "What is the BTC/ETH ratio and is gas cheap right now?"
 -------------------------------------------------------------------------------------
-HOW IT WORKS
+HOW IT WORKS (SDK)
     1. Agent fetches the catalog from GET /api/v1/catalog
     2. Catalog is converted to Groq‑compatible function/tool definitions
     3. Agent sends the task + tools to Groq (free tier)
@@ -37,8 +39,8 @@ REQUIREMENTS
     - Groq API key (free tier available)
 -------------------------------------------------------------------------------------
 EXAMPLE TASKS
-    node agent-groq.mjs "Analyze the crypto market and give me a trading recommendation"
-    node agent-groq.mjs "What is the current gas price and is it a good time to transact?"
-    node agent-groq.mjs "Compare BTC and ETH performance and calculate their ratio"
-    node agent-groq.mjs "Give me a full market overview of all available crypto prices"
-    node agent-groq.mjs "Tell me a cat fact"
+    node agent.mjs "Analyze the crypto market and give me a trading recommendation"
+    node agent.mjs "What is the current gas price and is it a good time to transact?"
+    node agent.mjs "Compare BTC and ETH performance and calculate their ratio"
+    node agent.mjs "Give me a full market overview of all available crypto prices"
+    node agent.mjs "Tell me a cat fact"
