@@ -38,6 +38,7 @@
 2026/20/05: prob: new MockUSDC not usable
 2026/20/05: fix: X402Facilitator have immutable registered ERC20 token so redeploy to register new token
 2026/21/05: ...
-
+2026/22/05: mod: agent that uses gemini to groq for better free api limits
+2026/22/05: fix: vercel auto builds when whole proj is updated (restrict to apps/web)
 
 
