@@ -9,7 +9,7 @@
     "dev": "node --watch index.mjs"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
-    "ethers": "^6.16.0"
+    "ethers": "^6.16.0",
+    "openai": "^6.39.0"
   }
 }
