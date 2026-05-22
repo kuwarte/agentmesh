@@ -1,15 +1,16 @@
 {
-  "name": "agentmesh-agent",
+  "name": "demo-agent",
   "version": "1.0.0",
-  "description": "Autonomous AI agent for AgentMesh — powered by Gemini",
-  "type": "module",
-  "main": "index.mjs",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "start": "node index.mjs",
-    "dev": "node --watch index.mjs"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.24.0",
   "dependencies": {
-    "ethers": "^6.16.0",
-    "openai": "^6.39.0"
+    "dotenv": "^17.4.2"
   }
 }

@@ -1,44 +1,43 @@
-2026/18/05: started contract part
-2026/18/05: init foundry
-2026/18/05: created APIRegistry.sol
-2026/18/05: created APIRegistry.t.sol
-2026/18/05: created X402Facilitator.sol
-2026/18/05: created X402Facilitator.t.sol
-2026/18/05: generate abi via forge build
-2026/18/05: init express
-2026/18/05: added boilerplate
-2026/18/05: generate placeholders for routes, middlewares and services
-2026/19/05: continue: server fix
-2026/19/05: update logging, healthchecks, and routing
-2026/19/05: created blockchain signer redir to JSON ABI
-2026/19/05: created x402 middleware with 5 payload headers
-2026/19/05: created inmemory nonce cache
-2026/19/05: integrate blockchain service to server
-2026/19/05: created mock paid routes (not registered to APIRegistry)
-2026/19/05: created payment route for nonce generation, payment verification, and balance check func
-2026/19/05: created registry connector
-2026/19/05: added 1 more header for payer, add payer as param, and optimize deploy script
-2026/19/05: fixing param in blockchain service by converting toString (fix: bigInt issue)
-2026/19/05: created registry connector
-2026/19/05: created script for sample payment; functionality(nonce, sign, verify, call paid endpoint)
-2026/19/05: switch from local anvil to morph hoodi network (chainId: 2910)
-2026/19/05: created ledger for fast temporary analytics caching
-2026/19/05: created dynamic routing through fetching registered endpoint (gateway serve as proxy)
-2026/19/05: created X-payment header format replacing old 6 headers (retain 6 header for backcompat)
-2026/19/05: prob: when trying to spend Mock USDC with pay.mjs (throws err)
-2026/19/05: fix: add approval for wallet spending of minted USDC
-2026/20/05: add simulated agent script
-2026/20/05: add replay chain events for ledger accuracy (for server restart)
-2026/20/05: add paginated replay for block events (for ledger read)
-2026/20/05: update MockUSDC contract for minting faucet endpoint (1000 USDC/hr)
-2026/20/05: created minting endpoint for frontend req
-2026/20/05: add sample agent with gemini api key
-2026/20/05: prob: encounter rate limit and insufficient subscription
-2026/20/05: fix: use fallback simulated agent
-2026/20/05: prob: new MockUSDC not usable
-2026/20/05: fix: X402Facilitator have immutable registered ERC20 token so redeploy to register new token
-2026/21/05: ...
-2026/22/05: mod: agent that uses gemini to groq for better free api limits
-2026/22/05: fix: vercel auto builds when whole proj is updated (restrict to apps/web)
-
-
+2026-05-18: started contract part
+2026-05-18: init foundry
+2026-05-18: created APIRegistry.sol
+2026-05-18: created APIRegistry.t.sol
+2026-05-18: created X402Facilitator.sol
+2026-05-18: created X402Facilitator.t.sol
+2026-05-18: generate abi via forge build
+2026-05-18: init express
+2026-05-18: added boilerplate
+2026-05-18: generate placeholders for routes, middlewares and services
+2026-05-19: continue: server fix
+2026-05-19: update logging, healthchecks, and routing
+2026-05-19: created blockchain signer redir to JSON ABI
+2026-05-19: created x402 middleware with 5 payload headers
+2026-05-19: created inmemory nonce cache
+2026-05-19: integrate blockchain service to server
+2026-05-19: created mock paid routes (not registered to APIRegistry)
+2026-05-19: created payment route for nonce generation, payment verification, and balance check func
+2026-05-19: created registry connector
+2026-05-19: added 1 more header for payer, add payer as param, and optimize deploy script
+2026-05-19: fixing param in blockchain service by converting toString (fix: bigInt issue)
+2026-05-19: created registry connector
+2026-05-19: created script for sample payment; functionality(nonce, sign, verify, call paid endpoint)
+2026-05-19: switch from local anvil to morph hoodi network (chainId: 2910)
+2026-05-19: created ledger for fast temporary analytics caching
+2026-05-19: created dynamic routing through fetching registered endpoint (gateway serve as proxy)
+2026-05-19: created X-payment header format replacing old 6 headers (retain 6 header for backcompat)
+2026-05-19: prob: when trying to spend Mock USDC with pay.mjs (throws err)
+2026-05-19: fix: add approval for wallet spending of minted USDC
+2026-05-20: add simulated agent script
+2026-05-20: add replay chain events for ledger accuracy (for server restart)
+2026-05-20: add paginated replay for block events (for ledger read)
+2026-05-20: update MockUSDC contract for minting faucet endpoint (1000 USDC/hr)
+2026-05-20: created minting endpoint for frontend req
+2026-05-20: add sample agent with gemini api key
+2026-05-20: prob: encounter rate limit and insufficient subscription
+2026-05-20: fix: use fallback simulated agent
+2026-05-20: prob: new MockUSDC not usable
+2026-05-20: fix: X402Facilitator have immutable registered ERC20 token so redeploy to register new token
+2026-05-21: ...
+2026-05-22: mod: agent that uses gemini to groq for better free api limits
+2026-05-22: fix: vercel auto builds when whole proj is updated (restrict to apps/web)
+2026-05-22: add x402-agent-sdk – reusable agent for paid APIs via AgentMesh gateway

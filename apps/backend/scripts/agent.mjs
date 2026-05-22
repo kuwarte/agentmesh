@@ -261,6 +261,57 @@ function buildXPayment(provider, amount, nonce, deadline, signature) {
 	).toString("base64");
 }
 
+async function bootAnimation() {
+	// Step 1: Boot message with spinner
+	const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+	let i = 0;
+	const interval = setInterval(() => {
+		process.stdout.write(
+			`\r  ${fg.bCyan}${frames[i % frames.length]}  ${R}${fg.white}Booting Broker CLI...${R}`
+		);
+		i++;
+	}, 80);
+	await pause(2000);
+	clearInterval(interval);
+	// Clear line and write success
+	process.stdout.write(`\r  ${fg.bGrn}[+]  ${R}${fg.white}Broker CLI booted successfully${R}\n`);
+
+	// Step 2: Loading wallet credentials
+	process.stdout.write(`  ${fg.bCyan}[*]  ${R}${fg.white}Loading wallet credentials ...${R}`);
+	await pause(800);
+	// Clear that line and write resolved
+	process.stdout.write(
+		`\r  ${fg.bGrn}[+]  ${R}${fg.white}Wallet identity resolved          ${R}\n`
+	);
+
+	// Typewriter for address
+	process.stdout.write(`  ${fg.cyan}     address →  ${R}`);
+	const addr = AGENT_ADDR;
+	for (let i = 0; i < addr.length; i++) {
+		process.stdout.write(fg.bYel + addr[i] + R);
+		await pause(35);
+	}
+	console.log(""); // newline
+
+	// Step 3: Broker status transitions - use separate lines to avoid overwrite confusion
+	// Instead of overwriting the same line, print each status on a new line or clear properly.
+	// To avoid "readycting...", we'll clear line before each status.
+	const bootStatuses = ["idle", "connecting...", "CONNECTED"];
+	for (let idx = 0; idx < bootStatuses.length; idx++) {
+		const s = bootStatuses[idx];
+		// Clear the current line (if any) by writing spaces then carriage return
+		process.stdout.write(`\r${" ".repeat(50)}\r`);
+		process.stdout.write(`  ${fg.bCyan}[*]  ${R}${fg.white}Broker status: ${s}${R}`);
+		if (idx < bootStatuses.length - 1) {
+			await pause(idx === 0 ? 800 : 600);
+		} else {
+			await pause(400);
+		}
+	}
+	console.log(""); // final newline
+	await pause(400);
+}
+
 // ---------------------------------------------------------------------------
 // Main Pipeline Runtime
 // ---------------------------------------------------------------------------
@@ -314,6 +365,7 @@ async function main() {
 	);
 	console.log("");
 
+	await bootAnimation();
 	// Identity Management Frame
 	hdr("Runtime Infrastructure Configuration", fg.bCyan);
 	hdrLine(`Agent Wallet Address   :  ${AGENT_ADDR}`, fg.bCyan, fg.bYel + B);
