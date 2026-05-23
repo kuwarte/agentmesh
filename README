@@ -1,1 +1,246 @@
+AgentMesh — x402 Agentic Payment Platform
+==========================================
+
+  SYSTEM ARCHITECTURE
+  -------------------
+
+  Human User / API Provider          AI Agent (x402-agent-sdk / demo-agent)
+  ┌──────────────────────────┐       ┌───────────────────────────────────────┐
+  │  • Browse marketplace    │       │  • Wallet (ethers.Wallet)             │
+  │  • Register APIs         │       │  • LLM reasoning (Groq / OpenAI)      │
+  │  • View earnings         │       │  • Auto-approve USDC spending         │
+  │  • Mint test USDC        │       │  • Auto-mint via faucet               │
+  └─────────────┬────────────┘       └───────────────────┬───────────────────┘
+                │ HTTPS (browser)                        │ HTTPS
+                │ human-facing UI only                   │ fetch + X-Payment hdr
+                │                                        │ bypasses frontend
+                ▼                                        │
+  ┌─────────────────────────────────────────┐            │
+  │   FRONTEND  (Next.js 15 / Vercel)       │            │
+  │   apps/web  — port 3000                 │            │
+  │                                         │            │
+  │  Pages                                  │            │
+  │  ┌───────────────────────────────────┐  │            │
+  │  │ /                Landing page     │  │            │
+  │  │ /marketplace     API grid,        │  │            │
+  │  │                  search, filter   │  │            │
+  │  │ /marketplace/[slug]               │  │            │
+  │  │                  API detail,      │  │            │
+  │  │                  params, schema,  │  │            │
+  │  │                  code example     │  │            │
+  │  │ /provider/[address]               │  │            │
+  │  │                  Provider dash,   │  │            │
+  │  │                  earnings view    │  │            │
+  │  │ /app/api/*       wallet auth      │  │            │
+  │  └───────────────────────────────────┘  │            │
+  │                                         │            │
+  │  Lib / Hooks                            │            │
+  │  ┌───────────────────────────────────┐  │            │
+  │  │ lib/apis.ts      static catalog   │  │            │
+  │  │                  (→ Supabase WIP) │  │            │
+  │  │ lib/supabase.ts  browser + server │  │            │
+  │  │                  Supabase clients │  │            │
+  │  │ lib/chains.tsx   Morph L2 config  │  │            │
+  │  │ hooks/useReveal  scroll animation │  │            │
+  │  └───────────────────────────────────┘  │            │
+  │                                         │            │
+  │  Providers: wagmi, WalletConnect,       │            │
+  │             TanStack Query, Tailwind    │            │
+  └──────────────────┬──────────────────────┘            │
+                     │ REST                              │ REST
+                     │ (localhost:3001 / prod)           │ (localhost:3001 / prod)
+                     └──────────────────┬────────────────┘
+                                        ▼
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                   BACKEND GATEWAY  (Express / Node.js)                  │
+  │                     apps/backend  — port 3001                           │
+  │                                                                         │
+  │  Routes                              Services                           │
+  │  ┌────────────────────────────┐      ┌────────────────────────────┐     │
+  │  │ GET  /api/v1/catalog       │      │ blockchain.service.ts      │     │
+  │  │   Full service catalog     │      │  • ethers.js provider      │     │
+  │  │   (on-chain + built-in)    │      │  • Read APIRegistry        │     │
+  │  │                            │      │  • Call X402Facilitator    │     │
+  │  │ GET  /api/v1/btc           │      │    settle()                │     │       ┌────────────────────────────┐
+  │  │ GET  /api/v1/eth           │      │  • Replay PaymentSettled   │     │       │                            │
+  │  │ GET  /api/v1/sol           │      │    events on restart       │     │       │                            │
+  │  │ GET  /api/v1/gas           │      ├────────────────────────────┤     │       │                            │
+  │  │   Paid built-in APIs       │      │ ledger.service.ts          │     │       │                            │
+  │  │                            │      │  • In-memory analytics     │     │       │                            │
+  │  │ GET  /api/v1/call/:apiId   │      │  • Per-provider earnings   │     │       │       THIRD PARTY API      │
+  │  │   Dynamic proxy to any     │      │  • Total call counts       │     │       │      (Provider Wallet)     │
+  │  │   registered API           │      ├────────────────────────────┤     │──────>│                            │
+  │  ├────────────────────────────┤      │ nonce.service.ts           │     │ PROXY │                            │
+  │  │ GET  /payment/nonce        │      │  • Generate nonce+deadline │     │       │                            │
+  │  │ POST /payment/verify       │      │  • In-memory nonce cache   │     │       │                            │
+  │  │ GET  /payment/balance/:a   │      │    (replay-attack guard)   │     │       │                            │
+  │  │ GET  /payment/status       │      └────────────────────────────┘     │       │                            │
+  │  ├────────────────────────────┤                                         │       │                            │
+  │  │ GET  /registry/apis        │      Middleware                         │       └────────────────────────────┘
+  │  │ POST /registry/register    │      ┌────────────────────────────┐     │                      │
+  │  │ PUT  /registry/api/:id     │      │ x402.middleware.ts         │     │                      │
+  │  ├────────────────────────────┤      │  • Parse X-Payment header  │     │                      │
+  │  │ GET  /dashboard/:address   │      │  • Decode base64 JSON      │     │                      │
+  │  │ GET  /provider/:address    │      │  • Verify ECDSA signature  │     │                      │
+  │  ├────────────────────────────┤      │  • Call settle() on-chain  │     │                      │
+  │  │ POST /faucet/mint          │      │  • Block invalid payments  │     │                      │
+  │  │ GET  /faucet/status/:a     │      └────────────────────────────┘     │                      │
+  │  ├────────────────────────────┤                                         │                      │
+  │  │ GET  /config               │                                         │                      │
+  │  │   Public network config    │                                         │                      │
+  │  │   + contract addresses     │                                         │                      │
+  │  └────────────────────────────┘                                         │                      │
+  └──────────────────────┬──────────────────────────────────────────────────┘                      │
+                         │                                                                         │
+          ┌──────────────┴──────────────┐                                                          │
+          │                             │                                                          │
+          ▼                             ▼                                                          │
+  ┌───────────────────┐       ┌─────────────────────────────────────────────┐                      │
+  │     SUPABASE      │       │          MORPH L2  (chainId: 2910)          │                      │
+  │  (API metadata)   │       │          Morph Hoodi Testnet                │                      │
+  │                   │       │                                             │                      │
+  └───────────────────┘       │  ┌──────────────────────────────────────┐   │                      │
+                              │  │  APIRegistry.sol                     │   │                      │
+                              │  │                                      │   │                      │
+                              │  │  struct API {                        │   │                      │
+                              │  │    address  provider                 │   │                      │
+                              │  │    string   name                     │   │ Truth + money layer  │
+                              │  │    string   endpoint                 │   │──────────────────────┘
+                              │  │    uint256  pricePerCall             │   │   99% revenue allocation to API providers
+                              │  │    bool     active                   │   │
+                              │  │  }                                   │   │
+                              │  │                                      │   │
+                              │  │  registerAPI(name, endpoint, price)  │   │
+                              │  │  getAPI(apiId)                       │   │
+                              │  │  getAllAPIs()                        │   │   
+                              │  │  getProviderAPIs(provider)           │   │       ┌────────────────────────────┐
+                              │  │  updateAPI(apiId, price, active)     │   │       │                            │
+                              │  └──────────────────────────────────────┘   │───────│       APP TREASURY         │
+                              │                                             │       │      (app main wallet)     │
+                              │  ┌──────────────────────────────────────┐   │       └────────────────────────────┘
+                              │  │  X402Facilitator.sol                 │   │
+                              │  │                                      │   │
+                              │  │  settle(payer, provider, amount,     │   │
+                              │  │         nonce, deadline, signature)  │   │
+                              │  │                                      │   │
+                              │  │  • Verifies ECDSA sig == payer       │   │
+                              │  │  • Replay protection via nonces      │   │
+                              │  │  • Deadline enforcement              │   │
+                              │  │  • 1% platform fee → treasury        │   │
+                              │  │  • transferFrom payer → provider     │   │
+                              │  │  • transferFrom payer → treasury     │   │
+                              │  └──────────────────────────────────────┘   │
+                              │                                             │
+                              │  ┌──────────────────────────────────────┐   │
+                              │  │  MockUSDC.sol  (ERC-20 testnet)      │   │
+                              │  │                                      │   │
+                              │  │  • mint(address, amount)             │   │
+                              │  │  • Faucet: 1000 USDC / hr            │   │
+                              │  └──────────────────────────────────────┘   │
+                              └─────────────────────────────────────────────┘
+
+
+  x402 PAYMENT FLOW  (agent => gateway => chain)
+  ----------------------------------------------
+
+  AI Agent                  Gateway (Express)           Morph L2
+  ─────────                 ─────────────────           ────────
+      │                            │                        │
+      │  1. GET /api/v1/catalog    │                        │
+      │ ─────────────────────────► │                        │
+      │ ◄───────────────────────── │                        │
+      │    [{name, endpoint,       │                        │
+      │      pricePerCall, ...}]   │                        │
+      │                            │                        │
+      │  2. GET /payment/nonce     │                        │
+      │ ─────────────────────────► │                        │
+      │ ◄───────────────────────── │                        │
+      │    { nonce, deadline }     │                        │
+      │                            │                        │
+      │  3. Sign off-chain         │                        │
+      │    keccak256(facilitator + │                        │
+      │    payer + provider +      │                        │
+      │    amount + nonce +        │                        │
+      │    deadline)               │                        │
+      │                            │                        │
+      │  4. Call paid API          │                        │
+      │    X-Payment: base64({     │                        │
+      │      payer, provider,      │                        │
+      │      amount, nonce,        │                        │
+      │      deadline, signature}) │                        │
+      │ ─────────────────────────► │                        │
+      │                            │  5. x402 middleware    │
+      │                            │     verify signature   │
+      │                            │                        │
+      │                            │  6. settle(payer,      │
+      │                            │     provider, amount,  │
+      │                            │     nonce, deadline,   │
+      │                            │     signature)         │
+      │                            │ ──────────────────────►│
+      │                            │                        │ 7. Verify sig
+      │                            │                        │    Check nonce
+      │                            │                        │    Check deadline
+      │                            │                        │    transferFrom
+      │                            │                        │    payer→provider
+      │                            │                        │    payer→treasury
+      │                            │ ◄──────────────────────│
+      │                            │    PaymentSettled evt  │
+      │                            │                        │
+      │                            │  8. Serve API response │
+      │ ◄───────────────────────── │                        │
+      │    { data: ... }           │                        │
+
+
+  MONOREPO STRUCTURE
+  ------------------
+
+  agentmesh/
+  ├── apps/
+  │   ├── web/                    Next.js 15 frontend (Vercel)
+  │   │   ├── app/
+  │   │   │   ├── marketplace/    API discovery + detail pages
+  │   │   │   ├── provider/       Provider dashboard
+  │   │   │   └── api/            Next.js API routes (wallet auth)
+  │   │   ├── components/
+  │   │   │   ├── layout/         AppSidebar, Footer, Nav
+  │   │   │   └── sections/       Landing page sections
+  │   │   ├── lib/
+  │   │   │   ├── apis.ts         Static API catalog (→ Supabase)
+  │   │   │   ├── supabase.ts     Supabase browser + server clients
+  │   │   │   └── chains.tsx      Morph L2 chain config (wagmi)
+  │   │   └── hooks/
+  │   │       └── useReveal.tsx   Scroll-reveal animation hook
+  │   │
+  │   └── backend/                Express gateway (Node.js)
+  │       └── src/
+  │           ├── server.ts       App bootstrap + route mounting
+  │           ├── routes/
+  │           │   ├── api.routes.ts       Paid API endpoints + catalog
+  │           │   ├── payment.routes.ts   Nonce, verify, balance
+  │           │   ├── registry.routes.ts  On-chain registry bridge
+  │           │   ├── dashboard.routes.ts Analytics per address
+  │           │   ├── provider.routes.ts  Provider earnings view
+  │           │   └── faucet.routes.ts    MockUSDC mint endpoint
+  │           ├── services/
+  │           │   ├── blockchain.service.ts  ethers.js + contract calls
+  │           │   ├── ledger.service.ts      In-memory analytics cache
+  │           │   └── nonce.service.ts       Nonce generation + cache
+  │           └── middleware/
+  │               └── x402.middleware.ts     Payment verification
+  │
+  ├── packages/
+  │   ├── contracts/              Foundry project (Solidity)
+  │   │   ├── src/
+  │   │   │   ├── APIRegistry.sol       On-chain API registry
+  │   │   │   ├── X402Facilitator.sol   Payment settlement contract
+  │   │   │   └── MockUSDC.sol          ERC-20 test token + faucet
+  │   │   ├── test/               Forge unit tests
+  │   │   └── script/             Deploy scripts
+  │   │
+  │   └── x402-agent-sdk/         Reusable agent SDK (ESM)
+  │       └── index.js            X402Agent class + createX402Agent()
+  │
+  └── demo-agent/                 Standalone demo agent
+      └── agent.mjs               Example agent using the SDK
+
 
