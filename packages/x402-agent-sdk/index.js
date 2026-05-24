@@ -1,13 +1,28 @@
 /**
  * @fileoverview x402AgentMesh SDK – Autonomous AI agent for paid APIs on Morph L2.
  * @author De-Finitely Broke
- * @version 1.0.0
+ * @version 2.0.0
+ *
+ * What changed in v2:
+ *   - Tool names derived from api.name (not api.key — catalog no longer has key field)
+ *   - Tool descriptions use real metadata from Supabase when available
+ *   - facilitator env var aligned to X402_FACILITATOR_ADDRESS (matches backend .env)
+ *   - onEvent(type, payload) callback for programmatic integration with real AI frameworks
+ *   - catalog refreshed on each run() call if stale (configurable via catalogTtl)
+ *   - callPaidAPI returns full payment receipt for event consumers
  *
  * @example
  * import { createX402Agent } from '@x402/agent-sdk';
  * const agent = createX402Agent();
  * const result = await agent.run("What is the current BTC price?");
  * console.log(result.answer, result.metrics);
+ *
+ * // With event hooks (for real AI framework integration):
+ * const agent = createX402Agent({
+ *   onEvent: (type, payload) => {
+ *     if (type === 'payment:success') myLogger.log(payload);
+ *   }
+ * });
  */
 import { config } from "dotenv";
 import { fileURLToPath } from "url";
@@ -148,7 +163,7 @@ class TuiLogger {
  * @typedef {Object} AgentConfig
  * @property {string} [gateway] - x402 gateway URL (default: `process.env.GATEWAY_URL` or `http://localhost:3001`).
  * @property {string} [privateKey] - Ethereum private key of the agent (default: `process.env.AGENT_PRIVATE_KEY`).
- * @property {string} [facilitator] - x402 facilitator contract address (default: `process.env.FACILITATOR_ADDRESS`).
+ * @property {string} [facilitator] - x402 facilitator contract address (default: `process.env.X402_FACILITATOR_ADDRESS`).
  * @property {Object} [llm] - LLM provider configuration.
  * @property {string} [llm.provider="groq"] - `"groq"` or `"openai"`.
  * @property {string} [llm.apiKey] - API key for the LLM provider (default: `process.env.GROQ_API_KEY` or `process.env.OPENAI_API_KEY`).
@@ -163,6 +178,10 @@ class TuiLogger {
  * @property {boolean} [verbose=true] - Enable rich terminal UI (default: `process.env.VERBOSE !== "false"`).
  * @property {boolean} [debug=false] - Enable debug logging (default: `process.env.DEBUG === "true"`).
  * @property {number} [settleDelay=2000] - Milliseconds to wait after each paid call (avoids nonce conflicts).
+ * @property {Function} [onEvent] - Optional callback `(type, payload) => void` for programmatic event hooks.
+ *   Event types: `'catalog:loaded'`, `'balance:checked'`, `'payment:signing'`, `'payment:success'`,
+ *   `'payment:failed'`, `'tool:called'`, `'tool:result'`, `'run:complete'`.
+ * @property {number} [catalogTtl=0] - Milliseconds before catalog cache expires (0 = never refresh).
  */
 
 /**
@@ -180,7 +199,8 @@ class X402Agent {
 		const {
 			gateway = env.GATEWAY_URL || "http://localhost:3001",
 			privateKey = env.AGENT_PRIVATE_KEY,
-			facilitator = env.FACILITATOR_ADDRESS,
+			// Accept both names — X402_FACILITATOR_ADDRESS matches backend .env
+			facilitator = env.X402_FACILITATOR_ADDRESS || env.FACILITATOR_ADDRESS,
 			llm = {
 				provider: "groq",
 				apiKey: env.GROQ_API_KEY,
@@ -196,6 +216,8 @@ class X402Agent {
 			verbose = env.VERBOSE !== "false",
 			debug = env.DEBUG === "true",
 			settleDelay = 2000,
+			onEvent = null,
+			catalogTtl = 0,
 		} = config;
 
 		/** @type {string} x402 gateway URL. */
@@ -220,6 +242,12 @@ class X402Agent {
 		this.autoMint = autoMint;
 		/** @type {number} Delay after each payment (ms). */
 		this.settleDelay = settleDelay;
+		/** @type {Function|null} Event callback for programmatic integration. */
+		this.onEvent = typeof onEvent === "function" ? onEvent : null;
+		/** @type {number} Catalog cache TTL in ms (0 = never expire). */
+		this.catalogTtl = catalogTtl;
+		/** @type {number} Timestamp of last catalog fetch. */
+		this._catalogFetchedAt = 0;
 
 		/** @type {TuiLogger|null} Terminal logger (only if `verbose`). */
 		this.logger = verbose ? new TuiLogger(debug) : null;
@@ -297,6 +325,21 @@ Your only job is to map the user's request to the most relevant tool from the pr
 	 */
 	_spinnerDone(msg) {
 		if (this.logger) this.logger.spinner(msg, true);
+	}
+
+	/**
+	 * Internal: Emit a structured event to the onEvent callback.
+	 * Allows real AI frameworks (LangChain, custom loops) to hook into
+	 * payment and tool execution lifecycle without parsing terminal output.
+	 * @private
+	 * @param {string} type - Event type (e.g. 'payment:success', 'tool:called').
+	 * @param {Object} payload - Event data.
+	 */
+	_emit(type, payload = {}) {
+		if (this.onEvent) {
+			try { this.onEvent(type, { type, timestamp: Date.now(), ...payload }); }
+			catch {}
+		}
 	}
 
 	/**
@@ -392,6 +435,7 @@ Your only job is to map the user's request to the most relevant tool from the pr
 		this._spinnerDone("Nonce obtained");
 
 		this._spinner("Signing payment voucher");
+		this._emit("payment:signing", { callUrl, provider, amount: String(amount) });
 		const signature = await this.signPayment(provider, amount, nonce, deadline);
 		this._spinnerDone("Voucher signed");
 
@@ -413,6 +457,25 @@ Your only job is to map the user's request to the most relevant tool from the pr
 		const apiRes = await this._fetch(fullUrl, fetchOptions);
 		const body = await apiRes.json();
 		this._spinnerDone("Payment sent");
+
+		if (apiRes.status === 200) {
+			this._emit("payment:success", {
+				callUrl,
+				provider,
+				amount: String(amount),
+				amountUsd: (Number(amount) / 1_000_000).toFixed(6),
+				nonce,
+				data: body.data ?? body,
+			});
+		} else {
+			this._emit("payment:failed", {
+				callUrl,
+				provider,
+				amount: String(amount),
+				status: apiRes.status,
+				error: body.error,
+			});
+		}
 
 		// Critical: delay to allow settlement transaction to be mined
 		if (this.settleDelay > 0) {
@@ -462,50 +525,76 @@ Your only job is to map the user's request to the most relevant tool from the pr
 
 	/**
 	 * Fetches the service catalog from the gateway.
+	 * Respects catalogTtl — if set and catalog is fresh, returns cached version.
 	 * @returns {Promise<Object>} Catalog data (including `catalog` and `payment` fields).
 	 * @throws {Error} If the gateway responds with a non‑OK status.
 	 */
 	async fetchCatalog() {
+		const now = Date.now();
+		const isStale = this.catalogTtl > 0 && (now - this._catalogFetchedAt) > this.catalogTtl;
+		if (this.catalog && !isStale) return { catalog: this.catalog };
+
 		const res = await this._fetch(`${this.gateway}/api/v1/catalog`);
 		if (!res.ok) throw new Error("Catalog fetch failed");
 		const data = await res.json();
 		this.catalog = data.catalog;
+		this._catalogFetchedAt = now;
+		this._emit("catalog:loaded", { count: this.catalog.length, catalog: this.catalog });
 		return data;
 	}
 
 	/**
 	 * Converts the raw catalog into OpenAI function‑calling tools.
+	 * Uses api.name to derive a stable function name (catalog no longer has a key field).
+	 * Uses real metadata description from Supabase when available, falls back to name.
 	 * @private
-	 * @param {Array} catalog - Array of API definitions.
-	 * @returns {Array} Tools array.
+	 * @param {Array} catalog - Array of API definitions from /api/v1/catalog.
+	 * @returns {Array} Tools array in OpenAI function-calling format.
 	 */
 	_catalogToTools(catalog) {
 		return catalog.map((api) => {
-			const props = api.parameters?.properties ? { ...api.parameters.properties } : {};
-			let desc = api.description || api.name;
-			const n = api.name.toLowerCase();
-			if (n.includes("cat fact")) desc = "Returns a random cat fact. Costs $" + api.priceUsd;
-			else if (n.includes("dog fact"))
-				desc = "Returns a random dog fact. Costs $" + api.priceUsd;
-			else if (n.includes("joke")) desc = "Returns a random joke. Costs $" + api.priceUsd;
-			else desc = `${desc}. Costs $${api.priceUsd} USDC per call.`;
+			// Derive a valid JS identifier from the API name
+			// e.g. "BTC Price" → "btc_price", "Dog Fact" → "dog_fact"
+			const fnName = (() => {
+				let fn = api.name
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, "_")
+					.replace(/^_+|_+$/g, "");
+				if (/^\d/.test(fn)) fn = "fn_" + fn;
+				return fn || "api_" + api.apiId.slice(2, 10);
+			})();
+
+			// Use real metadata description if available, otherwise fall back to name
+			const desc = api.description
+				? `${api.description} Costs $${api.priceUsd} USDC per call.`
+				: `${api.name}. Costs $${api.priceUsd} USDC per call.`;
+
+			// Build parameter schema from metadata params if available
+			const props = {};
+			const required = [];
+			if (Array.isArray(api.params)) {
+				for (const p of api.params) {
+					props[p.name] = {
+						type: p.type === "boolean" ? "boolean" : p.type === "integer" ? "integer" : "string",
+						description: p.description || p.name,
+					};
+					if (p.required === "Yes") required.push(p.name);
+				}
+			}
 
 			return {
 				type: "function",
 				function: {
-					name: (() => {
-						let fn = api.key.replace(/[^a-zA-Z0-9_]/g, "_").replace(/^_+/, "");
-						if (/^\d/.test(fn)) fn = "fn_" + fn;
-						return fn;
-					})(),
+					name: fnName,
 					description: desc,
-					parameters: { type: "object", properties: props, required: Object.keys(props) },
+					parameters: { type: "object", properties: props, required },
 				},
 				_meta: {
-					callUrl: api.callUrl,
-					provider: api.provider,
+					callUrl:      api.callUrl,
+					provider:     api.provider,
 					pricePerCall: api.pricePerCall,
-					name: api.name,
+					name:         api.name,
+					apiId:        api.apiId,
 				},
 			};
 		});
@@ -514,7 +603,8 @@ Your only job is to map the user's request to the most relevant tool from the pr
 	// ── Main Execution ────────────────────────────────────────────────────
 
 	/**
-	 * Executes the agent on a given user task.
+	 * Executes the agent on a given user task using the AI reasoning loop.
+	 * The AI selects tools from the catalog, pays for them, and synthesizes a final answer.
 	 * @param {string} task - Natural language task (e.g., "What is the BTC price?").
 	 * @returns {Promise<{answer: string, metrics: {totalSpent: string, callsMade: number}}>}
 	 * @example
@@ -548,8 +638,9 @@ Your only job is to map the user's request to the most relevant tool from the pr
 			this.logger.footer();
 		}
 
-		// 1. Catalog
-		if (!this.catalog) {
+		// 1. Catalog — fetch if missing or stale
+		const catalogIsStale = this.catalogTtl > 0 && (Date.now() - this._catalogFetchedAt) > this.catalogTtl;
+		if (!this.catalog || catalogIsStale) {
 			if (this.logger) this.logger.header("SERVICE CATALOG");
 			this._spinner("Fetching tools from gateway");
 			await this.fetchCatalog();
@@ -576,6 +667,7 @@ Your only job is to map the user's request to the most relevant tool from the pr
 		const balRes = await this._fetch(`${this.gateway}/payment/balance/${this.agentAddress}`);
 		const balData = await balRes.json();
 		this._spinnerDone(`${balData.usdcBalance} USDC`);
+		this._emit("balance:checked", { address: this.agentAddress, usdcBalance: balData.usdcBalance });
 
 		if (parseFloat(balData.usdcBalance) === 0 && this.autoMint) {
 			this._spinner("Minting test tokens");
@@ -651,6 +743,7 @@ Your only job is to map the user's request to the most relevant tool from the pr
 						0
 					);
 				}
+				this._emit("tool:called", { name: meta.name, apiId: meta.apiId, args, pricePerCall: meta.pricePerCall });
 
 				try {
 					const { status, body, nonce } = await this.callPaidAPI(
@@ -665,6 +758,7 @@ Your only job is to map the user's request to the most relevant tool from the pr
 						callCount++;
 						if (this.logger)
 							this.logger.tree(`${C.green}[ OK ] Transaction success${C.reset}`, 1);
+						this._emit("tool:result", { name: meta.name, apiId: meta.apiId, success: true, data: body.data ?? body });
 						toolResults.push({
 							role: "tool",
 							tool_call_id: id,
@@ -676,6 +770,7 @@ Your only job is to map the user's request to the most relevant tool from the pr
 								`${C.red}[ FAIL ] Execution error status ${status}${C.reset}`,
 								1
 							);
+						this._emit("tool:result", { name: meta.name, apiId: meta.apiId, success: false, status, error: body.error });
 						toolResults.push({
 							role: "tool",
 							tool_call_id: id,
@@ -691,6 +786,7 @@ Your only job is to map the user's request to the most relevant tool from the pr
 							`${C.red}[ FAIL ] Execution error: ${err.message}${C.reset}`,
 							1
 						);
+					this._emit("tool:result", { name: meta.name, apiId: meta.apiId, success: false, error: err.message });
 					toolResults.push({
 						role: "tool",
 						tool_call_id: id,
@@ -753,12 +849,15 @@ Your only job is to map the user's request to the most relevant tool from the pr
 			this.logger.footer();
 		}
 
+		const finalMetrics = {
+			totalSpent: (Number(totalSpent) / 1_000_000).toFixed(6) + " USDC",
+			callsMade: callCount,
+		};
+		this._emit("run:complete", { answer: finalText.trim(), metrics: finalMetrics });
+
 		return {
 			answer: finalText.trim(),
-			metrics: {
-				totalSpent: (Number(totalSpent) / 1_000_000).toFixed(6) + " USDC",
-				callsMade: callCount,
-			},
+			metrics: finalMetrics,
 		};
 	}
 
@@ -776,6 +875,59 @@ Your only job is to map the user's request to the most relevant tool from the pr
 		this._debug(`-> ${res.status} ${res.statusText}`, 2);
 		return res;
 	}
+
+	/**
+	 * Directly call a specific API by name or apiId, bypassing the AI loop.
+	 * Useful for real AI frameworks (LangChain tools, custom agents) that handle
+	 * tool selection themselves and just need the x402 payment + proxy handled.
+	 *
+	 * @param {string} nameOrId - API name (e.g. "BTC Price") or apiId (0x...).
+	 * @param {Object} [args={}] - Query arguments forwarded to the upstream API.
+	 * @returns {Promise<{data: any, amountUsd: string, nonce: string}>}
+	 * @throws {Error} If the API is not found in the catalog or payment fails.
+	 * @example
+	 * // Use in a LangChain tool or custom agent:
+	 * const { data } = await agent.callAPI("BTC Price");
+	 * const { data: joke } = await agent.callAPI("Random Joke");
+	 * const { data: geo } = await agent.callAPI("IP Info", { ip: "8.8.8.8" });
+	 */
+	async callAPI(nameOrId, args = {}) {
+		// Ensure catalog is loaded
+		if (!this.catalog) await this.fetchCatalog();
+		if (!this.tools) {
+			this.tools = this._catalogToTools(this.catalog);
+			this.toolMap = Object.fromEntries(this.tools.map((t) => [t.function.name, t._meta]));
+		}
+
+		// Find by name (case-insensitive) or apiId
+		const meta = Object.values(this.toolMap).find(
+			(m) =>
+				m.name.toLowerCase() === nameOrId.toLowerCase() ||
+				m.apiId === nameOrId
+		);
+
+		if (!meta) {
+			const available = Object.values(this.toolMap).map((m) => m.name).join(", ");
+			throw new Error(`API not found: "${nameOrId}". Available: ${available}`);
+		}
+
+		const { status, body, nonce } = await this.callPaidAPI(
+			meta.callUrl,
+			meta.provider,
+			meta.pricePerCall,
+			args
+		);
+
+		if (status !== 200) {
+			throw new Error(`API call failed (HTTP ${status}): ${body.error || "unknown error"}`);
+		}
+
+		return {
+			data:      body.data ?? body,
+			amountUsd: (Number(meta.pricePerCall) / 1_000_000).toFixed(6),
+			nonce,
+		};
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -787,14 +939,25 @@ Your only job is to map the user's request to the most relevant tool from the pr
  * @param {AgentConfig} [config] - Configuration object (all fields optional).
  * @returns {X402Agent} Configured agent.
  * @example
- * const agent = createX402Agent({
- *   gateway: "http://localhost:3001",
- *   privateKey: "0x...",
- *   facilitator: "0x...",
- *   autoMint: true,
- *   verbose: true,
- * });
+ * // Basic usage — AI picks tools automatically
+ * const agent = createX402Agent({ autoMint: true, verbose: true });
  * const result = await agent.run("Get me a random joke.");
+ * console.log(result.answer);
+ *
+ * // Direct API call — bypass AI loop (for LangChain tools, custom agents)
+ * const agent = createX402Agent({ verbose: false });
+ * const { data } = await agent.callAPI("BTC Price");
+ *
+ * // Event hooks — integrate with real AI frameworks
+ * const agent = createX402Agent({
+ *   verbose: false,
+ *   onEvent: (type, payload) => {
+ *     if (type === 'payment:success') console.log('Paid:', payload.amountUsd, 'USDC');
+ *     if (type === 'tool:result')     console.log('Got:', payload.data);
+ *     if (type === 'run:complete')    console.log('Done:', payload.metrics);
+ *   }
+ * });
+ * const result = await agent.run("What is the ETH price and a random dog fact?");
  */
 export function createX402Agent(config = {}) {
 	return new X402Agent(config);

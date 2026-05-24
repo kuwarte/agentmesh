@@ -1,13 +1,18 @@
 {
   "name": "demo-agent",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Demo agent for AgentMesh x402 SDK",
+  "main": "agent.mjs",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node agent.mjs",
+    "dev": "node agent.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.24.0"
+  "packageManager": "pnpm@10.24.0",
+  "dependencies": {
+    "x402-agent-sdk": "workspace:../packages/x402-agent-sdk"
+  }
 }
