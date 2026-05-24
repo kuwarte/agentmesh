@@ -508,7 +508,11 @@ Your only job is to map the user's request to the most relevant tool from the pr
 
 		this._spinner("Checking USDC allowance");
 		const allowance = await usdc.allowance(this.agentAddress, this.facilitator);
-		this._spinnerDone(`Allowance: ${ethers.formatUnits(allowance, 6)} USDC`);
+		// MaxUint256 approval shows as "Unlimited" instead of a 78-digit number
+		const allowanceDisplay = allowance >= ethers.MaxUint256 / 2n
+			? "Unlimited"
+			: `${ethers.formatUnits(allowance, 6)} USDC`;
+		this._spinnerDone(`Allowance: ${allowanceDisplay}`);
 
 		const MIN_ALLOWANCE = ethers.parseUnits("1000000", 6); // 1 million USDC
 		if (allowance < MIN_ALLOWANCE) {
@@ -703,6 +707,8 @@ Your only job is to map the user's request to the most relevant tool from the pr
 		const results = {};
 		let totalSpent = 0n;
 		let callCount = 0;
+		// Track tools that have already failed so we don't retry them
+		const failedTools = new Set();
 
 		for (let loop = 0; loop < this.maxLoops; loop++) {
 			const message = response.choices[0].message;
@@ -712,6 +718,8 @@ Your only job is to map the user's request to the most relevant tool from the pr
 			if (this.logger) this.logger.header(`EXECUTION PROCESS`);
 
 			const toolResults = [];
+			let successfulCallsThisRound = 0;
+
 			for (const toolCall of message.tool_calls) {
 				const {
 					id,
@@ -731,7 +739,17 @@ Your only job is to map the user's request to the most relevant tool from the pr
 					toolResults.push({
 						role: "tool",
 						tool_call_id: id,
-						content: JSON.stringify({ error: "Unknown tool" }),
+						content: JSON.stringify({ error: "Unknown tool — do not retry" }),
+					});
+					continue;
+				}
+
+				// Skip tools that already failed in a previous round
+				if (failedTools.has(name)) {
+					toolResults.push({
+						role: "tool",
+						tool_call_id: id,
+						content: JSON.stringify({ error: "Tool unavailable — do not retry", tool: meta.name }),
 					});
 					continue;
 				}
@@ -756,6 +774,7 @@ Your only job is to map the user's request to the most relevant tool from the pr
 						results[meta.name] = body.data;
 						totalSpent += BigInt(meta.pricePerCall);
 						callCount++;
+						successfulCallsThisRound++;
 						if (this.logger)
 							this.logger.tree(`${C.green}[ OK ] Transaction success${C.reset}`, 1);
 						this._emit("tool:result", { name: meta.name, apiId: meta.apiId, success: true, data: body.data ?? body });
@@ -770,13 +789,16 @@ Your only job is to map the user's request to the most relevant tool from the pr
 								`${C.red}[ FAIL ] Execution error status ${status}${C.reset}`,
 								1
 							);
+						// Mark as failed so we don't retry this tool
+						failedTools.add(name);
 						this._emit("tool:result", { name: meta.name, apiId: meta.apiId, success: false, status, error: body.error });
 						toolResults.push({
 							role: "tool",
 							tool_call_id: id,
 							content: JSON.stringify({
-								error: body.error || "API Authorization issue",
+								error: body.error || "API call failed — do not retry this tool",
 								status,
+								permanent: true,
 							}),
 						});
 					}
@@ -786,16 +808,34 @@ Your only job is to map the user's request to the most relevant tool from the pr
 							`${C.red}[ FAIL ] Execution error: ${err.message}${C.reset}`,
 							1
 						);
+					// Mark as failed so we don't retry this tool
+					failedTools.add(name);
 					this._emit("tool:result", { name: meta.name, apiId: meta.apiId, success: false, error: err.message });
 					toolResults.push({
 						role: "tool",
 						tool_call_id: id,
-						content: JSON.stringify({ error: err.message }),
+						content: JSON.stringify({ error: `${err.message} — do not retry this tool`, permanent: true }),
 					});
 				}
 			}
 
 			messages.push(...toolResults);
+
+			// If every tool call this round failed, stop looping — the LLM has
+			// all the error context it needs to synthesize a final answer.
+			if (successfulCallsThisRound === 0 && toolResults.length > 0) {
+				this._spinner("Synthesizing final answer");
+				response = await this.llm.chat.completions.create({
+					model: this.model,
+					messages,
+					temperature: this.temperature,
+					// No tools — force a text answer, not another tool call
+				});
+				this._spinnerDone("Done");
+				if (this.logger) this.logger.footer();
+				break;
+			}
+
 			this._spinner("Processing results");
 			response = await this.llm.chat.completions.create({
 				model: this.model,
