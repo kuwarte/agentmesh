@@ -263,8 +263,7 @@ class BlockchainService {
 	// after a server restart. The chain is the source of truth.
 	// Paginates in 5000-block chunks to respect Morph Hoodi RPC limits.
 	async replayLedgerFromChain(
-		ledger: import("./ledger.service").LedgerService,
-		builtinEndpoints?: Record<string, { name: string; apiId: string }>
+		ledger: import("./ledger.service").LedgerService
 	): Promise<void> {
 		try {
 			console.log("[ledger] Replaying PaymentSettled events from chain...");
@@ -322,17 +321,6 @@ class BlockchainService {
 
 				let apiId   = matchedOnChain?.apiId ?? "";
 				let apiName = matchedOnChain?.name ?? "";
-
-				// If not found on-chain, check built-in endpoints by apiId
-				if (!apiName && builtinEndpoints) {
-					const builtinMatch = Object.values(builtinEndpoints).find(
-						(e) => e.apiId && allAPIs.some((a) => a.apiId === e.apiId && a.provider.toLowerCase() === prov.toLowerCase())
-					);
-					if (builtinMatch) {
-						apiId   = builtinMatch.apiId;
-						apiName = builtinMatch.name;
-					}
-				}
 
 				// Final fallback: use provider address as identifier
 				if (!apiName) {

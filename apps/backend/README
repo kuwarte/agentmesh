@@ -8,6 +8,7 @@ WHAT IT DOES
 - AI agents discover APIs on-chain, pay per call, receive data — zero human approval
 - Gateway mediates on-chain settlement via X402Facilitator.sol
 - Providers register APIs on-chain via APIRegistry.sol
+- Rich API metadata (docs, params, code examples) stored off-chain in Supabase
 - Every payment is signed, verified, and settled on Morph L2
 -------------------------------------------------------------------------------------
 STATUS
@@ -18,13 +19,23 @@ STATUS
 [/] APIRegistry integration (read + write)
 [/] Startup registry sync (live on-chain prices)
 [/] Generic proxy route (any registered API callable)
-[/] Payment ledger (in-memory, per-call history)
+[/] Payment ledger (in-memory, per-call history, replayed from chain on restart)
 [/] Marketplace catalog endpoint
 [/] Dashboard endpoints (wallet spend history)
 [/] Provider portal endpoints (earnings, call history)
 [/] Single X-Payment header (base64 JSON)
 [/] chainId in 402 response
 [/] Demo agent script (autonomous multi-call simulation)
+[/] Off-chain metadata service (Supabase — category, tags, docs, params, examples)
+[/] Metadata endpoints (POST/GET /registry/metadata/:id)
+[/] Slug routing (/registry/slug/:slug)
+[/] Category listing (/registry/categories)
+[/] Enriched marketplace listing (on-chain + metadata merged)
+[/] Unified call route — all APIs (built-in + provider) via /api/v1/call/:apiId
+[/] Built-in feeds auto-registered on-chain at startup (no special-casing)
+[ ] Playground endpoint (/api/v1/playground/:apiId)
+[ ] Wallet-signature-based metadata auth (EIP-712)
+[ ] Search query param (?search=) on /registry/apis
 -------------------------------------------------------------------------------------
 GETTING STARTED
     1. Build contracts (required before starting backend)
@@ -35,25 +46,37 @@ GETTING STARTED
     3. Configure environment
             cp apps/backend/.env.example apps/backend/.env
             # Fill in all values — see ENVIRONMENT section below
-    4. Move into backend folder
+    4. (Optional) Set up Supabase for API metadata
+            # Create a project at https://supabase.com
+            # Run the SQL in src/services/metadata.service.ts in the SQL editor
+            # Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env
+            # Without these, metadata endpoints return 503 — all other routes work fine
+    5. Move into backend folder
             cd apps/backend
-    5. Install dependencies
+    6. Install dependencies
             pnpm install
-    6. Start server
+    7. Start server
             pnpm dev
             # Server runs at http://localhost:3001
-    7. Run demo agent (optional)
+    8. Run demo agent (optional)
             node scripts/agent.mjs
 -------------------------------------------------------------------------------------
 ENVIRONMENT
     RPC_URL                   Morph Hoodi RPC (https://rpc-hoodi.morphl2.io)
     CHAIN_NAME                morph_hoodi
     GATEWAY_PRIVATE_KEY       Server wallet private key (pays gas for settle())
+    AGENT_PRIVATE_KEY         Agent wallet private key (used by demo scripts)
     API_REGISTRY_ADDRESS      Deployed APIRegistry.sol address
     X402_FACILITATOR_ADDRESS  Deployed X402Facilitator.sol address
     USDC_ADDRESS              Deployed MockUSDC address
     PROVIDER_ADDRESS          Wallet that receives 99% of API payments
     TREASURY_ADDRESS          Wallet that receives 1% platform fee
+    FACILITATOR_DEPLOY_BLOCK  Block number when X402Facilitator was deployed
+                              (avoids scanning from block 0 on startup)
+
+    ── Supabase (optional — off-chain API metadata) ──────────────────────────
+    SUPABASE_URL              https://<project-ref>.supabase.co
+    SUPABASE_SERVICE_ROLE_KEY Service role key (not the anon key)
 -------------------------------------------------------------------------------------
 REQUIREMENTS
     - Node.js 18+
@@ -62,41 +85,99 @@ REQUIREMENTS
     - Morph Hoodi ETH — for gas (faucet: https://morphl2.io/faucet)
 -------------------------------------------------------------------------------------
 DEPENDENCIES
-    express    HTTP server
-    cors       Cross-origin access
-    dotenv     Environment config
-    ethers     Blockchain interaction (v6)
+    express              HTTP server (v5)
+    cors                 Cross-origin access
+    dotenv               Environment config
+    ethers               Blockchain interaction (v6)
+    @supabase/supabase-js Off-chain metadata storage
 -------------------------------------------------------------------------------------
 API ENDPOINTS
+
   PAID APIs (x402 protected — requires X-Payment header)
-    GET  /api/v1/catalog          List all available APIs with on-chain prices
-    GET  /api/v1/btc              BTC/USD price  ($0.001 USDC)
-    GET  /api/v1/eth              ETH/USD price  ($0.001 USDC)
-    GET  /api/v1/sol              SOL/USD price  ($0.0005 USDC)
-    GET  /api/v1/gas              Ethereum gas tracker  ($0.0005 USDC)
-    GET  /api/v1/call/:apiId      Proxy any on-chain registered API (dynamic price)
+    GET  /api/v1/catalog          List all active on-chain APIs with prices
+    GET  /api/v1/call/:apiId      Universal paid entry point — proxies any registered API
+    GET  /api/v1/internal/:key    Unauthenticated data handlers for built-in feeds
+                                  (btc, eth, sol, gas — called by the proxy, not agents directly)
+
   PAYMENT
     GET  /payment/nonce           Generate fresh nonce + deadline (5 min expiry)
     POST /payment/verify          Pre-flight signature check (no nonce consumed)
     GET  /payment/balance/:addr   USDC balance for any wallet
     GET  /payment/status          Payment layer health check
-  REGISTRY (on-chain APIRegistry.sol)
-    GET  /registry/apis           List all registered APIs (marketplace)
-    GET  /registry/api/:id        Single API detail + recent activity
-    GET  /registry/provider/:addr All APIs owned by a provider
-    GET  /registry/stats          Total API count + chain status
-    POST /registry/register       Register a new API on-chain
-    PUT  /registry/api/:id        Update price or active status
+
+  REGISTRY (on-chain APIRegistry.sol, merged with off-chain metadata)
+    GET  /registry/apis                  List all APIs — on-chain + metadata merged
+                                         Query params: ?category=Crypto/DeFi  ?active=true
+    GET  /registry/api/:id               Single API detail — full on-chain + metadata
+    GET  /registry/slug/:slug            Resolve a URL slug to full API detail
+    GET  /registry/provider/:addr        All APIs owned by a provider
+    GET  /registry/categories            Distinct categories (marketplace filter bar)
+    GET  /registry/stats                 Total API count + chain status
+    POST /registry/register              Register a new API on-chain
+    PUT  /registry/api/:id               Update price or active status
+
+  METADATA (off-chain, Supabase — requires SUPABASE_* env vars)
+    POST /registry/metadata/:id          Submit or update rich metadata for an API
+                                         Header: X-Provider-Address (ownership check)
+                                         Body: { slug, category, tags, description,
+                                                 longDesc, params, codeExample,
+                                                 responseSchema }
+    GET  /registry/metadata/:id          Fetch metadata for a single API
+
+  FAUCET (testnet only)
+    GET  /faucet/status/:address  Check cooldown and USDC balance for a wallet
+    POST /faucet/mint             Mint 1000 MockUSDC to a wallet (1h cooldown)
+
   DASHBOARD (wallet spend view)
     GET  /dashboard/:address              Overview: balance, spend, call count
     GET  /dashboard/:address/history      Paginated call history
     GET  /dashboard/:address/spend        Spend breakdown per API
+
   PROVIDER PORTAL (earnings view)
     GET  /provider/:address               Overview: earnings, APIs, call stats
     GET  /provider/:address/earnings      Earnings breakdown per API
     GET  /provider/:address/calls         Paginated incoming call history
+
+  UTILITY
+    GET  /                        Health check + full endpoint map
+    GET  /config                  Public config for agent onboarding
+                                  (contract addresses, network, quickstart steps)
+-------------------------------------------------------------------------------------
+METADATA SYSTEM
+
+  The on-chain APIRegistry stores only trust-critical fields:
+    provider, name, endpoint, pricePerCall, active
+
+  Rich discovery and docs fields are stored off-chain in Supabase, keyed by apiId:
+    slug, category, tags, description, longDesc,
+    params, codeExample, responseSchema
+
+  This split keeps gas costs low while giving the marketplace full API docs.
+  The metadata service degrades gracefully — if Supabase is not configured,
+  all registry endpoints still work, returning null for metadata fields.
+
+  Supabase table: api_metadata
+    api_id          text PRIMARY KEY
+    slug            text UNIQUE
+    category        text
+    tags            text[]
+    description     text
+    long_desc       text
+    params          jsonb   -- [{ name, type, required, description }]
+    code_example    text
+    response_schema text
+    created_at      timestamptz
+    updated_at      timestamptz
+
+  SQL to create the table is in src/services/metadata.service.ts (header comment).
+
+  Typical provider flow after on-chain registration:
+    1. POST /registry/register  →  get apiId
+    2. POST /registry/metadata/:apiId  →  submit docs, category, slug
+    3. GET  /registry/apis  →  API appears in marketplace with full metadata
 -------------------------------------------------------------------------------------
 X402 PAYMENT FLOW
+
     Agent                    Gateway                  Morph Hoodi
       |                         |                          |
       |-- GET /api/v1/btc ----->|                          |
@@ -124,25 +205,76 @@ X402 PAYMENT FLOW
       |                         |                          |-- emit PaymentSettled
       |                         |<-- txHash ---------------|
       |                         |   ledger.record()        |
+
     Key properties:
     - Agent signs once, gateway settles on-chain
     - Nonce consumed in-memory before response, permanently on-chain after settle
     - Settlement is async — agent does not wait for on-chain confirmation
+    - Ledger is rebuilt from chain events on server restart (replayLedgerFromChain)
     - Every settled payment is recorded in the ledger for dashboard queries
+-------------------------------------------------------------------------------------
+SERVICES
+
+    blockchain.service.ts
+        Wraps all on-chain interactions: signature verification, settlement,
+        APIRegistry read/write, USDC balance queries, ledger replay from chain.
+        Built-in feeds are registered as real on-chain entries at startup.
+
+    metadata.service.ts
+        Supabase-backed CRUD for off-chain API metadata. Initialised at startup.
+        Degrades gracefully if SUPABASE_* env vars are not set.
+
+    ledger.service.ts
+        In-memory payment history. Rebuilt from PaymentSettled chain events on
+        restart. Capped at 1000 entries. Serves dashboard and provider portal.
+
+    nonce.service.ts
+        In-memory nonce store (first line of replay protection, 24h TTL).
+        The X402Facilitator on-chain usedNonces mapping is the permanent truth.
 -------------------------------------------------------------------------------------
 SCRIPTS
     node scripts/pay.mjs      Single end-to-end payment test (BTC endpoint)
-    node scripts/agent.mjs    Full demo agent
+    node scripts/agent.mjs    Full demo agent (multi-call autonomous simulation)
 -------------------------------------------------------------------------------------
 SMART CONTRACTS
+
     APIRegistry.sol
         - Permissionless API registration
         - On-chain pricing (pricePerCall in USDC, 6 decimals)
         - Provider ownership and update rights
         - Enumerable listings for agent discovery
+
     X402Facilitator.sol
         - Gateway-mediated settlement
         - ECDSA signature verification against declared payer
         - Nonce-based replay protection
         - 99% to provider / 1% to treasury fee split
         - Deadline enforcement
+
+    MockUSDC.sol
+        - ERC-20 test token (6 decimals, matches mainnet USDC)
+        - Faucet: 1000 USDC per mint, 1h cooldown per wallet
+        - Used by the /faucet endpoints
+-------------------------------------------------------------------------------------
+PROJECT STRUCTURE
+
+    src/
+      server.ts                 Express app, bootstrap, route mounting
+      middleware/
+        x402.middleware.ts      Payment-as-auth middleware (402 / verify / settle)
+      routes/
+        api.routes.ts           Paid API endpoints + generic proxy
+        registry.routes.ts      On-chain registry + metadata merge
+        metadata.routes.ts      Off-chain metadata CRUD (Supabase)
+        payment.routes.ts       Nonce, verify, balance, status
+        dashboard.routes.ts     Wallet spend analytics
+        provider.routes.ts      Provider earnings analytics
+        faucet.routes.ts        MockUSDC testnet faucet
+      services/
+        blockchain.service.ts   All on-chain interactions (ethers v6)
+        metadata.service.ts     Off-chain metadata (Supabase)
+        ledger.service.ts       In-memory payment history
+        nonce.service.ts        In-memory nonce replay protection
+    scripts/
+      pay.mjs                   Single payment test script
+      agent.mjs                 Demo autonomous agent

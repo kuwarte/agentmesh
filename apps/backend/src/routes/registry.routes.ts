@@ -3,31 +3,92 @@
  *
  * On-chain API registry endpoints.
  *
- * GET  /registry/apis              — list all registered APIs (marketplace)
- * GET  /registry/api/:id           — single API detail (marketplace/:id)
+ * GET  /registry/apis              — list all registered APIs (marketplace, merged with metadata)
+ * GET  /registry/api/:id           — single API detail (marketplace/:id, merged with metadata)
  * GET  /registry/provider/:address — all APIs by a provider (provider portal)
  * GET  /registry/stats             — total count + chain status
+ * GET  /registry/categories        — distinct categories from metadata (marketplace filter bar)
+ * GET  /registry/slug/:slug        — resolve a slug to full API detail
  * POST /registry/register          — register a new API on-chain
  * PUT  /registry/api/:id           — update price / active status (provider portal)
+ *
+ * Metadata routes (POST/GET /registry/metadata/:id) are in metadata.routes.ts
+ * and mounted here via metadataRouter.
  */
 
 import { Router, Request, Response } from "express";
 import { blockchainService } from "../services/blockchain.service";
 import { ledgerService } from "../services/ledger.service";
+import { metadataService } from "../services/metadata.service";
+import metadataRouter from "./metadata.routes";
 
 const router = Router();
 
 // Express 5 types req.params values as string | string[] — this narrows to string
 const param = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);
 
+// Mount metadata sub-router at /registry/metadata/:id
+router.use("/metadata", metadataRouter);
+
 // ---------------------------------------------------------------------------
 // GET /registry/apis
-// Marketplace — list all APIs with name, price, provider
+// Marketplace — list all APIs merged with off-chain metadata.
+// On-chain fields: provider, name, endpoint, pricePerCall, active
+// Metadata fields: category, tags, description, slug (null if not submitted)
+//
+// Query params:
+//   ?category=Crypto/DeFi  — filter by category
+//   ?active=true           — filter by active status (default: all)
 // ---------------------------------------------------------------------------
-router.get("/apis", async (_req: Request, res: Response) => {
+router.get("/apis", async (req: Request, res: Response) => {
 	try {
-		const apis = await blockchainService.getAllAPIs();
-		res.json({ success: true, count: apis.length, apis });
+		const onChainApis = await blockchainService.getAllAPIs();
+
+		// Optional filters
+		const categoryFilter = req.query.category as string | undefined;
+		const activeFilter   = req.query.active as string | undefined;
+
+		// Batch-fetch all metadata in one Supabase query
+		const apiIds      = onChainApis.map((a) => a.apiId);
+		const metadataMap = await metadataService.getBatch(apiIds);
+
+		// Merge on-chain + metadata
+		let merged = onChainApis.map((api) => {
+			const meta = metadataMap.get(api.apiId) ?? null;
+			return {
+				// On-chain (source of truth)
+				apiId:        api.apiId,
+				provider:     api.provider,
+				name:         api.name,
+				endpoint:     api.endpoint,
+				pricePerCall: api.pricePerCall,
+				priceUsd:     (Number(api.pricePerCall) / 1_000_000).toFixed(6),
+				active:       api.active,
+				// Off-chain metadata (null if not submitted)
+				slug:         meta?.slug        ?? null,
+				category:     meta?.category    ?? null,
+				tags:         meta?.tags        ?? [],
+				description:  meta?.description ?? null,
+			};
+		});
+
+		// Apply filters
+		if (activeFilter !== undefined) {
+			const wantActive = activeFilter !== "false";
+			merged = merged.filter((a) => a.active === wantActive);
+		}
+		if (categoryFilter) {
+			merged = merged.filter(
+				(a) => a.category?.toLowerCase() === categoryFilter.toLowerCase()
+			);
+		}
+
+		res.json({
+			success:          true,
+			count:            merged.length,
+			metadataEnabled:  metadataService.isReady(),
+			apis:             merged,
+		});
 	} catch (err: any) {
 		res.status(500).json({ success: false, error: err.message });
 	}
@@ -35,7 +96,7 @@ router.get("/apis", async (_req: Request, res: Response) => {
 
 // ---------------------------------------------------------------------------
 // GET /registry/api/:id
-// Marketplace/:id — single API detail + recent payment activity
+// Marketplace/:id — single API detail merged with metadata + recent activity
 // ---------------------------------------------------------------------------
 router.get("/api/:id", async (req: Request, res: Response) => {
 	try {
@@ -45,14 +106,93 @@ router.get("/api/:id", async (req: Request, res: Response) => {
 			return res.status(404).json({ success: false, error: "API not found" });
 		}
 
+		// Fetch off-chain metadata (null if not yet submitted)
+		const metadata = await metadataService.get(id);
+
 		const recentPayments = ledgerService.byApiId(id).slice(0, 20);
+		const totalCalls     = ledgerService.byApiId(id).length;
 
 		res.json({
 			success: true,
-			api,
+			api: {
+				// On-chain fields
+				apiId:        api.apiId,
+				provider:     api.provider,
+				name:         api.name,
+				endpoint:     api.endpoint,
+				pricePerCall: api.pricePerCall,
+				priceUsd:     (Number(api.pricePerCall) / 1_000_000).toFixed(6),
+				active:       api.active,
+				// Off-chain metadata (null if not submitted)
+				slug:           metadata?.slug           ?? null,
+				category:       metadata?.category       ?? null,
+				tags:           metadata?.tags           ?? [],
+				description:    metadata?.description    ?? null,
+				longDesc:       metadata?.longDesc       ?? null,
+				params:         metadata?.params         ?? [],
+				codeExample:    metadata?.codeExample    ?? null,
+				responseSchema: metadata?.responseSchema ?? null,
+			},
 			activity: {
 				recentPayments,
-				totalCalls: ledgerService.byApiId(id).length,
+				totalCalls,
+			},
+		});
+	} catch (err: any) {
+		res.status(500).json({ success: false, error: err.message });
+	}
+});
+
+// ---------------------------------------------------------------------------
+// GET /registry/slug/:slug
+// Resolve a URL slug to full API detail (for frontend /marketplace/:slug routing)
+// ---------------------------------------------------------------------------
+router.get("/slug/:slug", async (req: Request, res: Response) => {
+	if (!metadataService.isReady()) {
+		return res.status(503).json({
+			success: false,
+			error:   "Metadata service unavailable",
+		});
+	}
+
+	try {
+		const slug     = param(req.params.slug);
+		const metadata = await metadataService.getBySlug(slug);
+
+		if (!metadata) {
+			return res.status(404).json({ success: false, error: `No API found with slug: ${slug}` });
+		}
+
+		const api = await blockchainService.getAPI(metadata.apiId);
+		if (!api) {
+			return res.status(404).json({ success: false, error: "On-chain API not found for this slug" });
+		}
+
+		const totalCalls     = ledgerService.byApiId(metadata.apiId).length;
+		const recentPayments = ledgerService.byApiId(metadata.apiId).slice(0, 20);
+
+		res.json({
+			success: true,
+			api: {
+				apiId:          api.apiId,
+				provider:       api.provider,
+				name:           api.name,
+				endpoint:       api.endpoint,
+				pricePerCall:   api.pricePerCall,
+				priceUsd:       (Number(api.pricePerCall) / 1_000_000).toFixed(6),
+				active:         api.active,
+				slug:           metadata.slug,
+				category:       metadata.category,
+				tags:           metadata.tags,
+				description:    metadata.description,
+				longDesc:       metadata.longDesc,
+				params:         metadata.params,
+				codeExample:    metadata.codeExample,
+				responseSchema: metadata.responseSchema,
+			},
+			activity: {
+				recentPayments,
+				totalCalls,
 			},
 		});
 	} catch (err: any) {
@@ -75,6 +215,20 @@ router.get("/provider/:address", async (req: Request, res: Response) => {
 			count:    apis.length,
 			apis,
 		});
+	} catch (err: any) {
+		res.status(500).json({ success: false, error: err.message });
+	}
+});
+
+// ---------------------------------------------------------------------------
+// GET /registry/categories
+// Returns all distinct categories from metadata — used by the marketplace
+// filter bar. Falls back to an empty array if metadata service is down.
+// ---------------------------------------------------------------------------
+router.get("/categories", async (_req: Request, res: Response) => {
+	try {
+		const categories = await metadataService.getCategories();
+		res.json({ success: true, categories });
 	} catch (err: any) {
 		res.status(500).json({ success: false, error: err.message });
 	}

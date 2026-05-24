@@ -5,7 +5,8 @@ dotenv.config();
 
 import { blockchainService } from "./services/blockchain.service";
 import { ledgerService } from "./services/ledger.service";
-import apiRoutes, { syncWithRegistry, ENDPOINTS } from "./routes/api.routes";
+import { metadataService } from "./services/metadata.service";
+import apiRoutes, { autoRegisterBuiltins } from "./routes/api.routes";
 import paymentRoutes from "./routes/payment.routes";
 import registryRoutes from "./routes/registry.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
@@ -57,16 +58,16 @@ app.get("/", (_req: Request, res: Response) => {
 		},
 		endpoints: {
 			// Paid APIs
-			catalog: "/api/v1/catalog",
-			btc: "/api/v1/btc",
-			eth: "/api/v1/eth",
-			sol: "/api/v1/sol",
-			gas: "/api/v1/gas",
-			proxy: "/api/v1/call/:apiId",
+			catalog:    "/api/v1/catalog",
+			call:       "/api/v1/call/:apiId",
+			internal:   "/api/v1/internal/:key",
 			// Registry
-			registry: "/registry/apis",
-			register: "POST /registry/register",
-			updateApi: "PUT /registry/api/:id",
+			registry:    "/registry/apis",
+			register:    "POST /registry/register",
+			updateApi:   "PUT /registry/api/:id",
+			categories:  "/registry/categories",
+			metadata:    "POST /registry/metadata/:id",
+			slug:        "/registry/slug/:slug",
 			// Payment
 			nonce: "/payment/nonce",
 			verify: "POST /payment/verify",
@@ -118,7 +119,7 @@ app.get("/config", (_req: Request, res: Response) => {
 			step5: "GET /api/v1/catalog — discover available APIs and prices",
 			step6: "GET /payment/nonce — get a fresh nonce + deadline",
 			step7: "Sign: keccak256(facilitator+payer+provider+amount+nonce+deadline)",
-			step8: "Call any paid API with X-Payment: base64(JSON({...})) header",
+			step8: "Call any API with X-Payment: base64(JSON({...})) header via /api/v1/call/:apiId",
 		},
 	});
 });
@@ -131,12 +132,14 @@ async function bootstrap() {
 		console.log("[server] Initializing blockchain service...");
 		await blockchainService.init();
 
-		// Replay past PaymentSettled events to restore ledger after restart
-		// Pass ENDPOINTS so built-in API names are resolved correctly
-		await blockchainService.replayLedgerFromChain(ledgerService, ENDPOINTS);
+		// Initialize off-chain metadata service (Supabase)
+		metadataService.init();
 
-		// Sync built-in endpoint catalog with on-chain registry prices
-		await syncWithRegistry();
+		// Replay past PaymentSettled events to restore ledger after restart
+		await blockchainService.replayLedgerFromChain(ledgerService);
+
+		// Register built-in feeds on-chain if not already present
+		await autoRegisterBuiltins();
 
 		app.listen(PORT, () => {
 			console.log(`\nAgentMesh Gateway v1.0.0 — http://localhost:${PORT}`);

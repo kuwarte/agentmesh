@@ -11,6 +11,7 @@
 	"license": "ISC",
 	"packageManager": "pnpm@10.24.0",
 	"dependencies": {
+		"@supabase/supabase-js": "2.49.10",
 		"cors": "^2.8.6",
 		"dotenv": "^17.4.2",
 		"ethers": "^6.16.0",
