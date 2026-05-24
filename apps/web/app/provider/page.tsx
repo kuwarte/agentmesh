@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -10,61 +10,21 @@ import {
 } from 'recharts'
 import { useAccount, useConnect } from 'wagmi'
 import ProviderSidebar from '@/components/layout/ProviderSidebar'
+import {
+  fetchProviderOverview,
+  fetchProviderEarnings,
+  fetchProviderCalls,
+  type ProviderOverview,
+  type ProviderApi,
+  type LedgerEntry,
+  type EarningsBreakdown,
+} from '@/lib/backend'
 import styles from './Provider.module.css'
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const chartData = [
-  { name: 'Jan', earnings: 400 },
-  { name: 'Feb', earnings: 800 },
-  { name: 'Mar', earnings: 600 },
-  { name: 'Apr', earnings: 1000 },
-  { name: 'May', earnings: 1256.5 },
-]
-
-const ENDPOINTS = [
-  { name: 'BTC/USD Price Feed', price: '$0.0010/call', earned: '+$658.40' },
-  { name: 'ETH/USD Price Feed', price: '$0.0010/call', earned: '+$658.40' },
-  { name: 'Global Weather API', price: '$0.0010/call', earned: '+$124.00' },
-]
-
-const CALL_HISTORY = [
-  {
-    ts: 'May 20 14:57:59',
-    name: 'Web Content Scraper',
-    type: 'API CALL',
-    status: 'Settled',
-    amount: '-$0.0041',
-  },
-  {
-    ts: 'May 20 14:57:59',
-    name: 'Web Content Scraper',
-    type: 'EARNING',
-    status: 'Settled',
-    amount: '+$1.0044',
-  },
-  {
-    ts: 'May 20 14:57:59',
-    name: 'BTC/USD Price Feed',
-    type: 'REGISTRY',
-    status: 'Settled',
-    amount: '-',
-  },
-]
-
-const BREAKDOWN = [
-  { label: 'Crypto / DeFi', val: '$850.50', pct: 75 },
-  { label: 'Finance', val: '$201.00', pct: 40 },
-  { label: 'Web Scraping', val: '$105.00', pct: 20 },
-  { label: 'AI / Compute', val: '$100.00', pct: 15 },
-]
 
 // ─── Connect Modal Component ──────────────────────────────────────────────────
 
 function ConnectModal() {
   const { connect, connectors, isPending } = useConnect()
-  
-  // Dynamically targets your injected/available browser extension wallet wrapper
   const availableConnector = connectors[0]
 
   return (
@@ -101,7 +61,6 @@ function ConnectModal() {
           </div>
         </div>
 
-        {/* Unified, single option wallet execution button */}
         <button
           className={styles.modalConnectBtn}
           onClick={() => connect({ connector: availableConnector })}
@@ -120,11 +79,47 @@ function ConnectModal() {
 
 function Dashboard() {
   const { address } = useAccount()
+
+  const [overview,   setOverview]   = useState<ProviderOverview | null>(null)
+  const [apis,       setApis]       = useState<ProviderApi[]>([])
+  const [calls,      setCalls]      = useState<LedgerEntry[]>([])
+  const [breakdown,  setBreakdown]  = useState<EarningsBreakdown[]>([])
+  const [chartData,  setChartData]  = useState<{ name: string; earnings: number }[]>([])
   const [breakdownPeriod, setBreakdownPeriod] = useState('ALL')
+
+  useEffect(() => {
+    if (!address) return
+
+    Promise.all([
+      fetchProviderOverview(address),
+      fetchProviderEarnings(address),
+      fetchProviderCalls(address),
+    ]).then(([ov, earn, callsData]) => {
+      setOverview(ov.provider)
+      setApis(ov.apis)
+      setCalls(callsData.calls)
+      setBreakdown(earn.breakdown)
+
+      // Build a simple chart from call history grouped by month
+      const byMonth: Record<string, number> = {}
+      for (const c of ov.recentCalls) {
+        const month = new Date(c.timestamp).toLocaleString('default', { month: 'short' })
+        byMonth[month] = (byMonth[month] ?? 0) + parseFloat(c.amountUsd) * 0.99
+      }
+      setChartData(
+        Object.entries(byMonth).map(([name, earnings]) => ({ name, earnings: parseFloat(earnings.toFixed(2)) }))
+      )
+    }).catch(console.error)
+  }, [address])
 
   const shortAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
-    : '0x4F3A...839B'
+    : '—'
+
+  const totalEarnings = overview?.totalEarningsUsd ?? '0.000000'
+
+  // Max earnings for breakdown bar scaling
+  const maxEarnings = breakdown.reduce((m, b) => Math.max(m, parseFloat(b.earningsUsd)), 0.001)
 
   return (
     <main className={styles.content}>
@@ -147,27 +142,27 @@ function Dashboard() {
       <div className={styles.balanceCard}>
         <span className={styles.balanceLabel}>USDC Balance</span>
         <div className={styles.balanceValue}>
-          4,284.41 <span className={styles.balanceCurrency}>USDC</span>
+          {overview?.usdcBalance ?? '—'} <span className={styles.balanceCurrency}>USDC</span>
         </div>
-        <div className={styles.balanceTrend}>▲ +0.0203 USDC</div>
+        <div className={styles.balanceTrend}>▲ +{totalEarnings} earned</div>
       </div>
 
       {/* Stats Row */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
           <span className={styles.statLabel}>Total API calls</span>
-          <div className={styles.statValue}>1.2M</div>
-          <span className={styles.badge}>2.8K today</span>
+          <div className={styles.statValue}>{overview?.totalCalls?.toLocaleString() ?? '—'}</div>
+          <span className={styles.badge}>on-chain settled</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statLabel}>Transactions</span>
-          <div className={styles.statValue}>1.3K</div>
-          <span className={styles.statSubtext}>1.3K settled on-chain</span>
+          <span className={styles.statLabel}>Total Earnings</span>
+          <div className={styles.statValue}>${totalEarnings}</div>
+          <span className={styles.statSubtext}>after 1% platform fee</span>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statLabel}>APIs Registered</span>
-          <div className={styles.statValue}>6</div>
-          <span className={styles.badge}>+1 this week</span>
+          <div className={styles.statValue}>{overview?.totalApis ?? '—'}</div>
+          <span className={styles.badge}>{overview?.activeApis ?? 0} active</span>
         </div>
       </div>
 
@@ -178,13 +173,13 @@ function Dashboard() {
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartSub}>Total Earnings</span>
-              <div className={styles.chartVal}>$1,256.50</div>
+              <div className={styles.chartVal}>${totalEarnings}</div>
             </div>
           </div>
 
           <div className={styles.chartWrap}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+              <LineChart data={chartData.length ? chartData : [{ name: '—', earnings: 0 }]}>
                 <XAxis
                   dataKey="name"
                   stroke="var(--color-text-faint)"
@@ -213,21 +208,28 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Right Active Endpoints Checklist */}
+        {/* Right Active Endpoints */}
         <div className={styles.endpointsCard}>
           <h3 className={styles.sectionTitle}>
-            My Endpoints <span className={styles.titleBadge}>3</span>
+            My Endpoints <span className={styles.titleBadge}>{apis.length}</span>
           </h3>
           <div className={styles.endpointsList}>
-            {ENDPOINTS.map((ep) => (
-              <div key={ep.name} className={styles.endpointRow}>
+            {apis.map((ep) => (
+              <div key={ep.apiId} className={styles.endpointRow}>
                 <div>
                   <div className={styles.endpointName}>{ep.name}</div>
-                  <div className={styles.endpointPrice}>{ep.price}</div>
+                  <div className={styles.endpointPrice}>
+                    ${(Number(ep.pricePerCall) / 1_000_000).toFixed(4)}/call
+                  </div>
                 </div>
-                <div className={styles.endpointEarned}>{ep.earned}</div>
+                <div className={styles.endpointEarned}>
+                  {ep.active ? 'Active' : 'Inactive'}
+                </div>
               </div>
             ))}
+            {apis.length === 0 && (
+              <div style={{ opacity: 0.4, fontSize: 13, padding: '12px 0' }}>No APIs registered yet</div>
+            )}
           </div>
         </div>
       </div>
@@ -247,27 +249,34 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {CALL_HISTORY.map((row, idx) => (
-                <tr key={idx}>
-                  <td>{row.ts}</td>
-                  <td>{row.name}</td>
+              {calls.map((row) => (
+                <tr key={row.txHash}>
+                  <td>{new Date(row.timestamp).toLocaleString()}</td>
+                  <td>{row.apiName}</td>
                   <td>
                     <span className={`${styles.badge} ${styles.typeBadge}`}>
-                      {row.type}
+                      EARNING
                     </span>
                   </td>
-                  <td style={{ color: 'var(--color-accent)' }}>{row.status}</td>
-                  <td className="text-mono">{row.amount}</td>
+                  <td style={{ color: 'var(--color-accent)' }}>Settled</td>
+                  <td className="text-mono">+${row.amountUsd}</td>
                 </tr>
               ))}
+              {calls.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ opacity: 0.4, textAlign: 'center', padding: '16px 0' }}>
+                    No calls yet
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Sector Yield Breakdown Progress Stack */}
+        {/* Earnings Breakdown */}
         <div className={styles.breakdownCard}>
           <div className={styles.breakdownTop}>
-            <h3 className={styles.sectionTitle}>Earnings by Sector</h3>
+            <h3 className={styles.sectionTitle}>Earnings by API</h3>
             <div className={styles.toggleGroup}>
               {['ALL', '1M', '1W'].map((period) => (
                 <button
@@ -281,21 +290,28 @@ function Dashboard() {
             </div>
           </div>
 
-          {BREAKDOWN.map((item) => (
-            <div key={item.label} className={styles.breakdownRow}>
+          {breakdown.map((item) => (
+            <div key={item.apiName} className={styles.breakdownRow}>
               <div className={styles.breakdownLabelRow}>
-                <span>{item.label}</span>
-                <span>{item.val}</span>
+                <span>{item.apiName}</span>
+                <span>${item.earningsUsd}</span>
               </div>
               <div className={styles.progressTrack}>
-                <div className={styles.progressFill} style={{ width: `${item.pct}%` }} />
+                <div
+                  className={styles.progressFill}
+                  style={{ width: `${Math.round((parseFloat(item.earningsUsd) / maxEarnings) * 100)}%` }}
+                />
               </div>
             </div>
           ))}
 
+          {breakdown.length === 0 && (
+            <div style={{ opacity: 0.4, fontSize: 13, padding: '12px 0' }}>No earnings yet</div>
+          )}
+
           <div className={styles.breakdownTotal}>
-            <span>Total Spend</span>
-            <span className={styles.totalVal}>$1,256.50</span>
+            <span>Total Earnings</span>
+            <span className={styles.totalVal}>${totalEarnings}</span>
           </div>
         </div>
       </div>

@@ -1,29 +1,41 @@
 "use client";
 
 import AppSidebar from "@/components/layout/AppSidebar";
-import { APIS } from "@/lib/apis";
+import { fetchApiBySlug, fetchApiById, type ApiDetail } from "@/lib/backend";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./apiDetail.module.css";
 
 type Tab = "docs" | "playground" | "recent";
 
-function getApi(slug: string) {
-  return APIS.find((a) => a.slug === slug) ?? null;
-}
-
 export default function ApiDetailPage() {
   const params = useParams();
-  const slug = params?.apiId as string;
-  const api = getApi(slug);
-  const [tab, setTab] = useState<Tab>("docs");
+  const slug   = params?.apiId as string;
+
+  const [api, setApi]     = useState<ApiDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab]     = useState<Tab>("docs");
   const [copied, setCopied] = useState(false);
 
-  if (!api) return notFound();
+  useEffect(() => {
+    // Try slug first, fall back to raw apiId lookup
+    fetchApiBySlug(slug)
+      .then(data => {
+        if (data) { setApi(data); return; }
+        return fetchApiById(slug).then(d => setApi(d));
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  if (loading) return null; // keep layout stable while fetching
+  if (!api)    return notFound();
+
+  const callUrl = `/api/v1/call/${api.apiId}`;
 
   const copy = async () => {
-    await navigator.clipboard.writeText(api.endpoint);
+    await navigator.clipboard.writeText(callUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -44,7 +56,7 @@ export default function ApiDetailPage() {
             ›
           </span>
           <span className={styles.breadcrumbLink} style={{ opacity: 0.5 }}>
-            {api.category}
+            {api.category ?? "Uncategorized"}
           </span>
           <span className={styles.breadcrumbSep} aria-hidden="true">
             ›
@@ -58,7 +70,7 @@ export default function ApiDetailPage() {
           <main className={styles.main}>
             {/* Tags */}
             <div className={styles.tags}>
-              {api.tags.map((t) => (
+              {(api.tags ?? []).map((t) => (
                 <span key={t} className={styles.tag}>
                   {t}
                 </span>
@@ -69,20 +81,12 @@ export default function ApiDetailPage() {
             <h1 className={styles.title}>{api.name}</h1>
 
             {/* Description */}
-            <p className={styles.desc}>{api.longDesc}</p>
+            <p className={styles.desc}>{api.longDesc ?? api.description ?? ""}</p>
 
             {/* Stats */}
             <div className={styles.statsBar}>
               <span className={styles.stat}>
-                <strong>{api.totalCalls}</strong> total calls
-              </span>
-              <span className={styles.dot}>·</span>
-              <span className={styles.stat}>
-                <strong>{api.agentsActive}</strong> agents active
-              </span>
-              <span className={styles.dot}>·</span>
-              <span className={styles.stat}>
-                settlement: <strong>{api.settlement}</strong>
+                settlement: <strong>Morph L2</strong>
               </span>
             </div>
 
@@ -120,44 +124,46 @@ export default function ApiDetailPage() {
                   <div className={styles.endpointBox}>
                     <div className={styles.endpointRow}>
                       <span className={styles.methodBadge}>GET</span>
-                      <code className={styles.endpointUrl}>{api.endpoint}</code>
+                      <code className={styles.endpointUrl}>{callUrl}</code>
                       <button className={styles.copyBtn} onClick={copy}>
                         {copied ? "✓ COPIED" : "COPY"}
                       </button>
                     </div>
 
-                    <div className={styles.tableWrap}>
-                      <table className={styles.table}>
-                        <thead>
-                          <tr>
-                            <th>Parameter</th>
-                            <th>Type</th>
-                            <th>Required</th>
-                            <th>Description</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {api.params.map((p) => (
-                            <tr key={p.name}>
-                              <td>
-                                <code className={styles.paramName}>
-                                  {p.name}
-                                </code>
-                              </td>
-                              <td>
-                                <span className={styles.typeTag}>{p.type}</span>
-                              </td>
-                              <td className={styles.requiredCell}>
-                                {p.required}
-                              </td>
-                              <td className={styles.descCell}>
-                                {p.description}
-                              </td>
+                    {(api.params ?? []).length > 0 && (
+                      <div className={styles.tableWrap}>
+                        <table className={styles.table}>
+                          <thead>
+                            <tr>
+                              <th>Parameter</th>
+                              <th>Type</th>
+                              <th>Required</th>
+                              <th>Description</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {api.params.map((p) => (
+                              <tr key={p.name}>
+                                <td>
+                                  <code className={styles.paramName}>
+                                    {p.name}
+                                  </code>
+                                </td>
+                                <td>
+                                  <span className={styles.typeTag}>{p.type}</span>
+                                </td>
+                                <td className={styles.requiredCell}>
+                                  {p.required}
+                                </td>
+                                <td className={styles.descCell}>
+                                  {p.description}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </section>
 
@@ -178,74 +184,29 @@ export default function ApiDetailPage() {
 
                         <tbody>
                           <tr>
-                            <td>
-                              <code className={styles.paramName}>
-                                Payment Standard
-                              </code>
-                            </td>
-
-                            <td>
-                              <span className={styles.typeTag}>x402</span>
-                            </td>
-
-                            <td className={styles.descCell}>
-                              Machine-native payment protocol
-                            </td>
+                            <td><code className={styles.paramName}>Payment Standard</code></td>
+                            <td><span className={styles.typeTag}>x402</span></td>
+                            <td className={styles.descCell}>Machine-native payment protocol</td>
                           </tr>
-
                           <tr>
-                            <td>
-                              <code className={styles.paramName}>Token</code>
-                            </td>
-
-                            <td>
-                              <span className={styles.typeTag}>USDC</span>
-                            </td>
-
-                            <td className={styles.descCell}>
-                              Settlement currency for API calls
-                            </td>
+                            <td><code className={styles.paramName}>Token</code></td>
+                            <td><span className={styles.typeTag}>USDC</span></td>
+                            <td className={styles.descCell}>Settlement currency for API calls</td>
                           </tr>
-
                           <tr>
-                            <td>
-                              <code className={styles.paramName}>
-                                Settlement Chain
-                              </code>
-                            </td>
-
-                            <td>
-                              <span className={styles.typeTag}>Morph L2</span>
-                            </td>
-
-                            <td className={styles.descCell}>
-                              Network used for fast settlement
-                            </td>
+                            <td><code className={styles.paramName}>Settlement Chain</code></td>
+                            <td><span className={styles.typeTag}>Morph L2</span></td>
+                            <td className={styles.descCell}>Network used for fast settlement</td>
                           </tr>
-
                           <tr>
-                            <td>
-                              <code className={styles.paramName}>Speed</code>
-                            </td>
-
-                            <td>
-                              <span className={styles.typeTag}>&lt;1s</span>
-                            </td>
-
-                            <td className={styles.descCell}>
-                              Average settlement finality
-                            </td>
+                            <td><code className={styles.paramName}>Speed</code></td>
+                            <td><span className={styles.typeTag}>&lt;1s</span></td>
+                            <td className={styles.descCell}>Average settlement finality</td>
                           </tr>
-
                           <tr>
-                            <td>
-                              <code className={styles.paramName}>
-                                Provider Address
-                              </code>
-                            </td>
-
+                            <td><code className={styles.paramName}>Provider Address</code></td>
                             <td colSpan={2} className={styles.protocolAddress}>
-                              {api.providerFull}
+                              {api.provider}
                             </td>
                           </tr>
                         </tbody>
@@ -255,22 +216,26 @@ export default function ApiDetailPage() {
                 </section>
 
                 {/* Code example */}
-                <section className={styles.section}>
-                  <h2 className={styles.sectionTitle}>
-                    Example — Agent Integration
-                  </h2>
-                  <pre className={styles.codeBlock}>
-                    <code>{api.codeExample}</code>
-                  </pre>
-                </section>
+                {api.codeExample && (
+                  <section className={styles.section}>
+                    <h2 className={styles.sectionTitle}>
+                      Example — Agent Integration
+                    </h2>
+                    <pre className={styles.codeBlock}>
+                      <code>{api.codeExample}</code>
+                    </pre>
+                  </section>
+                )}
 
                 {/* Response schema */}
-                <section className={styles.section}>
-                  <h2 className={styles.sectionTitle}>Response Schema</h2>
-                  <pre className={styles.codeBlock}>
-                    <code>{api.responseSchema}</code>
-                  </pre>
-                </section>
+                {api.responseSchema && (
+                  <section className={styles.section}>
+                    <h2 className={styles.sectionTitle}>Response Schema</h2>
+                    <pre className={styles.codeBlock}>
+                      <code>{api.responseSchema}</code>
+                    </pre>
+                  </section>
+                )}
               </div>
             )}
 
@@ -307,10 +272,9 @@ export default function ApiDetailPage() {
             <div className={styles.priceCard}>
               <div className={styles.priceRow}>
                 <div className={styles.priceDisplay}>
-                  <span className={styles.priceValue}>{api.price}</span>
+                  <span className={styles.priceValue}>${api.priceUsd}</span>
                   <span className={styles.priceUnit}>USDC/CALL</span>
                 </div>
-
               </div>
 
               <ul className={styles.featureList}>
