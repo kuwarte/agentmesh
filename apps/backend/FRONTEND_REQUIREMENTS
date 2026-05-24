@@ -1,0 +1,192 @@
+FRONTEND REQUIREMENTS
+-------------------------------------------------------------------------------------
+Backend API contract for all frontend pages and components.
+Maps each page/component to the endpoints it needs, what's already implemented,
+and what's missing or needs a backend change.
+-------------------------------------------------------------------------------------
+
+LEGEND
+  [/] endpoint exists and works
+  [~] endpoint exists but needs a change (noted inline)
+  [ ] endpoint does not exist — needs to be built
+-------------------------------------------------------------------------------------
+
+PAGE: / (Landing page)
+-------------------------------------------------------------------------------------
+Components: Hero, Problems, TechnicalApproach, UnitEconomics, CTA, Navbar, Footer
+
+  Hero — waitlist form
+    [/] GET  /api/waitlist          — Next.js route (Supabase, not backend)
+    [/] POST /api/waitlist          — Next.js route (Supabase, not backend)
+    NOTE: waitlist is handled entirely in Next.js API routes. No backend needed.
+
+  Hero — live stats (optional enhancement)
+    [ ] GET  /registry/stats        — already exists but not wired to landing page
+        Returns: { totalAPIs, chainConnected, network }
+        Frontend could show "X APIs registered" live counter in hero section.
+
+  No other landing page sections require backend data.
+
+-------------------------------------------------------------------------------------
+
+PAGE: /marketplace
+-------------------------------------------------------------------------------------
+  [/] GET  /registry/apis                  — list all APIs (merged on-chain + metadata)
+        Query params supported: ?category=  ?active=true
+        Returns: apiId, name, provider, priceUsd, category, tags, description, slug
+
+  [/] GET  /registry/categories            — dynamic category list for filter bar
+        Returns: string[]
+
+  [ ] GET  /registry/apis?search=          — server-side search by name/description
+        Currently search is client-side only (filters already-fetched data).
+        For large registries, add ?search= query param to /registry/apis.
+        Backend change: filter by name/description ILIKE in metadata getBatch.
+
+  [~] GET  /registry/stats                 — total API count for marketplace header
+        Exists but not wired to the marketplace page.
+        Frontend could show "X APIs available" in the subtitle.
+
+-------------------------------------------------------------------------------------
+
+PAGE: /marketplace/:slug  (API detail)
+-------------------------------------------------------------------------------------
+  [/] GET  /registry/slug/:slug            — resolve slug → full API detail
+        Returns: apiId, name, provider, pricePerCall, priceUsd, category, tags,
+                 longDesc, params, codeExample, responseSchema
+
+  [/] GET  /registry/api/:id               — fallback if no slug (raw apiId in URL)
+        Returns same shape as above + activity.recentPayments, activity.totalCalls
+
+  PLAYGROUND TAB — needs these:
+  [/] GET  /payment/nonce                  — fresh nonce + deadline before signing
+        Returns: { nonce, deadline }
+
+  [/] GET  /payment/balance/:address       — show user's USDC balance before call
+        Returns: { usdcBalance }
+
+  [~] GET  /api/v1/call/:apiId             — the actual paid call
+        Exists and works. One backend change needed:
+        CORS must explicitly allow X-Payment header from browser origin.
+        Current: app.use(cors())  — uses defaults, may block custom headers.
+        Fix: app.use(cors({ allowedHeaders: ['Content-Type', 'X-Payment'] }))
+
+  [/] POST /payment/verify                 — optional pre-flight check before call
+        Returns: { valid, reason }
+
+  RECENT CALLS TAB:
+  [/] GET  /registry/api/:id               — activity.recentPayments already returned
+        Frontend just needs to wire the tab to display activity.recentPayments
+        instead of the hardcoded empty state.
+
+-------------------------------------------------------------------------------------
+
+PAGE: /provider  (Provider portal — requires wallet connection)
+-------------------------------------------------------------------------------------
+  [/] GET  /provider/:address              — overview: earnings, APIs, call stats
+        Returns: provider.{ usdcBalance, totalEarningsUsd, totalCalls,
+                             activeApis, totalApis }, apis[], recentCalls[]
+
+  [/] GET  /provider/:address/earnings     — earnings breakdown per API
+        Returns: totalEarningsUsd, totalCalls, breakdown[]
+
+  [/] GET  /provider/:address/calls        — paginated call history
+        Query params: ?page=1 ?limit=20
+        Returns: calls[], pagination.{ page, limit, total, pages }
+
+  [/] GET  /payment/balance/:address       — USDC balance for wallet display
+
+  REGISTER AN API button — currently no-op, needs:
+  [ ] POST /registry/register              — register new API on-chain
+        Body: { name, endpoint, pricePerCall }
+        Exists in backend but frontend has no form/modal wired to it.
+        Frontend needs: registration modal → POST /registry/register → get apiId
+        → POST /registry/metadata/:apiId → submit docs/category/slug
+
+  [ ] POST /registry/metadata/:id          — submit rich metadata after registration
+        Exists in backend. Frontend registration flow needs to call this
+        after on-chain registration to populate category, tags, description, etc.
+
+  UPDATE API — price/active toggle per endpoint row:
+  [ ] PUT  /registry/api/:id               — update price or active status
+        Body: { pricePerCall?, active? }
+        Exists in backend. Frontend needs edit controls per API row.
+
+  FAUCET — for testnet, show "Get test USDC" button:
+  [/] GET  /faucet/status/:address         — check cooldown + balance
+        Returns: { eligible, cooldownSeconds, usdcBalance, faucetAmount }
+
+  [/] POST /faucet/mint                    — mint 1000 MockUSDC
+        Body: { address }
+        Returns: { txHash, explorerUrl, amount }
+
+-------------------------------------------------------------------------------------
+
+PAGE: /dashboard  (Agent/consumer view — NOT YET BUILT in frontend)
+-------------------------------------------------------------------------------------
+  This page exists in the backend but has no frontend page yet.
+  Suggested route: /dashboard (wallet-gated, shows spend history)
+
+  [/] GET  /dashboard/:address             — overview: balance, spend, call count
+        Returns: wallet.{ usdcBalance, totalSpendUsd, callCount, uniqueApisUsed },
+                 recentCalls[]
+
+  [/] GET  /dashboard/:address/history     — paginated call history
+        Query params: ?page=1 ?limit=20
+        Returns: history[], pagination
+
+  [/] GET  /dashboard/:address/spend       — spend breakdown per API
+        Returns: totalSpendUsd, totalCalls, breakdown[]
+
+-------------------------------------------------------------------------------------
+
+GLOBAL / SHARED
+-------------------------------------------------------------------------------------
+  [/] GET  /config                         — contract addresses, network info
+        Used for: agent onboarding page, getting started docs, faucet flow
+        Returns: network, contracts.{ facilitator, registry, usdc }, payment, quickstart
+
+  [/] GET  /payment/status                 — chain health check
+        Used for: status indicator in sidebar or header (chain connected badge)
+
+  [~] CORS — X-Payment header must be explicitly allowed for playground
+        Current: app.use(cors())
+        Required: app.use(cors({ allowedHeaders: ['Content-Type', 'X-Payment'] }))
+
+-------------------------------------------------------------------------------------
+
+MISSING BACKEND ENDPOINTS (summary)
+-------------------------------------------------------------------------------------
+  [ ] GET  /registry/apis?search=          — server-side search
+  [ ] No dedicated "recent calls for a specific API" endpoint
+        Workaround: GET /registry/api/:id returns activity.recentPayments (top 20)
+        For full pagination: needs GET /registry/api/:id/calls?page=1
+
+-------------------------------------------------------------------------------------
+
+MISSING FRONTEND PAGES (summary)
+-------------------------------------------------------------------------------------
+  [ ] /dashboard                           — agent spend view (all backend ready)
+  [ ] Provider registration modal          — POST /registry/register flow
+  [ ] Provider API edit controls           — PUT /registry/api/:id
+  [ ] Faucet UI                            — GET+POST /faucet/* (testnet only)
+  [ ] Getting started / docs page          — GET /config + static content
+
+-------------------------------------------------------------------------------------
+
+BACKEND CHANGES NEEDED (summary)
+-------------------------------------------------------------------------------------
+  1. CORS — allow X-Payment header:
+        app.use(cors({ allowedHeaders: ['Content-Type', 'X-Payment'] }))
+
+  2. Search — add ?search= to GET /registry/apis:
+        Filter by name/description in the merged response
+
+  3. Paginated recent calls per API — new endpoint:
+        GET /registry/api/:id/calls?page=1&limit=20
+        Returns paginated ledger entries for a specific apiId
+
+  4. GATEWAY_URL env var — set to deployed URL (not localhost) before production:
+        Used by autoRegisterBuiltins() to register internal feed endpoints
+        Current default: http://localhost:3001
+        Required: set GATEWAY_URL=https://your-deployed-backend.com in .env
