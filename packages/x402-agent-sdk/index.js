@@ -1,15 +1,7 @@
 /**
  * @fileoverview x402AgentMesh SDK – Autonomous AI agent for paid APIs on Morph L2.
  * @author De-Finitely Broke
- * @version 2.0.0
- *
- * What changed in v2:
- *   - Tool names derived from api.name (not api.key — catalog no longer has key field)
- *   - Tool descriptions use real metadata from Supabase when available
- *   - facilitator env var aligned to X402_FACILITATOR_ADDRESS (matches backend .env)
- *   - onEvent(type, payload) callback for programmatic integration with real AI frameworks
- *   - catalog refreshed on each run() call if stale (configurable via catalogTtl)
- *   - callPaidAPI returns full payment receipt for event consumers
+ * @version 1.0.0
  *
  * @example
  * import { createX402Agent } from '@x402/agent-sdk';
@@ -33,9 +25,7 @@ config({ path: resolve(__dirname, ".env") });
 import { ethers } from "ethers";
 import OpenAI from "openai";
 
-// ─────────────────────────────────────────────────────────────────────────────
 // ANSI Terminal Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** @namespace ANSI */
 const C = {
@@ -53,9 +43,7 @@ const C = {
 
 const BOX_WIDTH = 110;
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Terminal UI Logger
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Industrial‑strength terminal logger with box drawing, spinner, and debug modes.
@@ -154,9 +142,7 @@ class TuiLogger {
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // X402Agent Class
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Configuration object for `createX402Agent()`.
@@ -284,12 +270,12 @@ class X402Agent {
 		this.systemPrompt =
 			systemPrompt ||
 			`You are an autonomous agent on Morph L2.
-Your only job is to map the user's request to the most relevant tool from the provided list.
-- Examine every tool’s **name** and **description** carefully.
-- Choose the tool that matches the user’s keywords exactly.
-- If no tool matches, say so – but you must look at **all** tools before giving up.
-- Call the chosen tool with an empty object {} if it requires no arguments.
-- Never invent tools. Never pick a random tool.`;
+            Your only job is to map the user's request to the most relevant tool from the provided list.
+            - Examine every tool’s **name** and **description** carefully.
+            - Choose the tool that matches the user’s keywords exactly.
+            - If no tool matches, say so – but you must look at **all** tools before giving up.
+            - Call the chosen tool with an empty object {} if it requires no arguments.
+            - Never invent tools. Never pick a random tool.`;
 
 		/** @type {Array|null} Cached service catalog. */
 		this.catalog = null;
@@ -337,8 +323,9 @@ Your only job is to map the user's request to the most relevant tool from the pr
 	 */
 	_emit(type, payload = {}) {
 		if (this.onEvent) {
-			try { this.onEvent(type, { type, timestamp: Date.now(), ...payload }); }
-			catch {}
+			try {
+				this.onEvent(type, { type, timestamp: Date.now(), ...payload });
+			} catch {}
 		}
 	}
 
@@ -509,9 +496,10 @@ Your only job is to map the user's request to the most relevant tool from the pr
 		this._spinner("Checking USDC allowance");
 		const allowance = await usdc.allowance(this.agentAddress, this.facilitator);
 		// MaxUint256 approval shows as "Unlimited" instead of a 78-digit number
-		const allowanceDisplay = allowance >= ethers.MaxUint256 / 2n
-			? "Unlimited"
-			: `${ethers.formatUnits(allowance, 6)} USDC`;
+		const allowanceDisplay =
+			allowance >= ethers.MaxUint256 / 2n
+				? "Unlimited"
+				: `${ethers.formatUnits(allowance, 6)} USDC`;
 		this._spinnerDone(`Allowance: ${allowanceDisplay}`);
 
 		const MIN_ALLOWANCE = ethers.parseUnits("1000000", 6); // 1 million USDC
@@ -535,7 +523,7 @@ Your only job is to map the user's request to the most relevant tool from the pr
 	 */
 	async fetchCatalog() {
 		const now = Date.now();
-		const isStale = this.catalogTtl > 0 && (now - this._catalogFetchedAt) > this.catalogTtl;
+		const isStale = this.catalogTtl > 0 && now - this._catalogFetchedAt > this.catalogTtl;
 		if (this.catalog && !isStale) return { catalog: this.catalog };
 
 		const res = await this._fetch(`${this.gateway}/api/v1/catalog`);
@@ -579,7 +567,12 @@ Your only job is to map the user's request to the most relevant tool from the pr
 			if (Array.isArray(api.params)) {
 				for (const p of api.params) {
 					props[p.name] = {
-						type: p.type === "boolean" ? "boolean" : p.type === "integer" ? "integer" : "string",
+						type:
+							p.type === "boolean"
+								? "boolean"
+								: p.type === "integer"
+									? "integer"
+									: "string",
 						description: p.description || p.name,
 					};
 					if (p.required === "Yes") required.push(p.name);
@@ -594,11 +587,11 @@ Your only job is to map the user's request to the most relevant tool from the pr
 					parameters: { type: "object", properties: props, required },
 				},
 				_meta: {
-					callUrl:      api.callUrl,
-					provider:     api.provider,
+					callUrl: api.callUrl,
+					provider: api.provider,
 					pricePerCall: api.pricePerCall,
-					name:         api.name,
-					apiId:        api.apiId,
+					name: api.name,
+					apiId: api.apiId,
 				},
 			};
 		});
@@ -643,7 +636,8 @@ Your only job is to map the user's request to the most relevant tool from the pr
 		}
 
 		// 1. Catalog — fetch if missing or stale
-		const catalogIsStale = this.catalogTtl > 0 && (Date.now() - this._catalogFetchedAt) > this.catalogTtl;
+		const catalogIsStale =
+			this.catalogTtl > 0 && Date.now() - this._catalogFetchedAt > this.catalogTtl;
 		if (!this.catalog || catalogIsStale) {
 			if (this.logger) this.logger.header("SERVICE CATALOG");
 			this._spinner("Fetching tools from gateway");
@@ -671,7 +665,10 @@ Your only job is to map the user's request to the most relevant tool from the pr
 		const balRes = await this._fetch(`${this.gateway}/payment/balance/${this.agentAddress}`);
 		const balData = await balRes.json();
 		this._spinnerDone(`${balData.usdcBalance} USDC`);
-		this._emit("balance:checked", { address: this.agentAddress, usdcBalance: balData.usdcBalance });
+		this._emit("balance:checked", {
+			address: this.agentAddress,
+			usdcBalance: balData.usdcBalance,
+		});
 
 		if (parseFloat(balData.usdcBalance) === 0 && this.autoMint) {
 			this._spinner("Minting test tokens");
@@ -749,7 +746,10 @@ Your only job is to map the user's request to the most relevant tool from the pr
 					toolResults.push({
 						role: "tool",
 						tool_call_id: id,
-						content: JSON.stringify({ error: "Tool unavailable — do not retry", tool: meta.name }),
+						content: JSON.stringify({
+							error: "Tool unavailable — do not retry",
+							tool: meta.name,
+						}),
 					});
 					continue;
 				}
@@ -760,8 +760,14 @@ Your only job is to map the user's request to the most relevant tool from the pr
 						`[~] TARGET TOOL : ${C.bold}${meta.name}${C.reset} [COST: ${C.yellow}${(Number(meta.pricePerCall) / 1_000_000).toFixed(6)} USDC${C.reset}]`,
 						0
 					);
+					this.logger.tree(` `);
 				}
-				this._emit("tool:called", { name: meta.name, apiId: meta.apiId, args, pricePerCall: meta.pricePerCall });
+				this._emit("tool:called", {
+					name: meta.name,
+					apiId: meta.apiId,
+					args,
+					pricePerCall: meta.pricePerCall,
+				});
 
 				try {
 					const { status, body, nonce } = await this.callPaidAPI(
@@ -777,7 +783,12 @@ Your only job is to map the user's request to the most relevant tool from the pr
 						successfulCallsThisRound++;
 						if (this.logger)
 							this.logger.tree(`${C.green}[ OK ] Transaction success${C.reset}`, 1);
-						this._emit("tool:result", { name: meta.name, apiId: meta.apiId, success: true, data: body.data ?? body });
+						this._emit("tool:result", {
+							name: meta.name,
+							apiId: meta.apiId,
+							success: true,
+							data: body.data ?? body,
+						});
 						toolResults.push({
 							role: "tool",
 							tool_call_id: id,
@@ -791,7 +802,13 @@ Your only job is to map the user's request to the most relevant tool from the pr
 							);
 						// Mark as failed so we don't retry this tool
 						failedTools.add(name);
-						this._emit("tool:result", { name: meta.name, apiId: meta.apiId, success: false, status, error: body.error });
+						this._emit("tool:result", {
+							name: meta.name,
+							apiId: meta.apiId,
+							success: false,
+							status,
+							error: body.error,
+						});
 						toolResults.push({
 							role: "tool",
 							tool_call_id: id,
@@ -810,11 +827,19 @@ Your only job is to map the user's request to the most relevant tool from the pr
 						);
 					// Mark as failed so we don't retry this tool
 					failedTools.add(name);
-					this._emit("tool:result", { name: meta.name, apiId: meta.apiId, success: false, error: err.message });
+					this._emit("tool:result", {
+						name: meta.name,
+						apiId: meta.apiId,
+						success: false,
+						error: err.message,
+					});
 					toolResults.push({
 						role: "tool",
 						tool_call_id: id,
-						content: JSON.stringify({ error: `${err.message} — do not retry this tool`, permanent: true }),
+						content: JSON.stringify({
+							error: `${err.message} — do not retry this tool`,
+							permanent: true,
+						}),
 					});
 				}
 			}
@@ -941,13 +966,13 @@ Your only job is to map the user's request to the most relevant tool from the pr
 
 		// Find by name (case-insensitive) or apiId
 		const meta = Object.values(this.toolMap).find(
-			(m) =>
-				m.name.toLowerCase() === nameOrId.toLowerCase() ||
-				m.apiId === nameOrId
+			(m) => m.name.toLowerCase() === nameOrId.toLowerCase() || m.apiId === nameOrId
 		);
 
 		if (!meta) {
-			const available = Object.values(this.toolMap).map((m) => m.name).join(", ");
+			const available = Object.values(this.toolMap)
+				.map((m) => m.name)
+				.join(", ");
 			throw new Error(`API not found: "${nameOrId}". Available: ${available}`);
 		}
 
@@ -963,7 +988,7 @@ Your only job is to map the user's request to the most relevant tool from the pr
 		}
 
 		return {
-			data:      body.data ?? body,
+			data: body.data ?? body,
 			amountUsd: (Number(meta.pricePerCall) / 1_000_000).toFixed(6),
 			nonce,
 		};

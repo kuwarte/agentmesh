@@ -27,8 +27,8 @@ import { blockchainService } from "../services/blockchain.service";
 const router = Router();
 
 const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:3001";
-const PROVIDER    = process.env.PROVIDER_ADDRESS || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-const param       = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);
+const PROVIDER = process.env.PROVIDER_ADDRESS || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+const param = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);
 
 // ---------------------------------------------------------------------------
 // Built-in feed definitions
@@ -36,30 +36,30 @@ const param       = (v: string | string[]): string => (Array.isArray(v) ? v[0] :
 // /internal/:key on this server so the proxy route can call them.
 // ---------------------------------------------------------------------------
 interface BuiltinDef {
-	name:         string;
-	description:  string;
-	pricePerCall: bigint;  // USDC raw units (6 decimals)
+	name: string;
+	description: string;
+	pricePerCall: bigint; // USDC raw units (6 decimals)
 }
 
 export const BUILTIN_FEEDS: Record<string, BuiltinDef> = {
 	btc: {
-		name:         "BTC Price",
-		description:  "Real-time Bitcoin/USD price",
-		pricePerCall: 1000n,  // $0.001
+		name: "BTC Price",
+		description: "Real-time Bitcoin/USD price",
+		pricePerCall: 1000n, // $0.001
 	},
 	eth: {
-		name:         "ETH Price",
-		description:  "Real-time Ethereum/USD price",
+		name: "ETH Price",
+		description: "Real-time Ethereum/USD price",
 		pricePerCall: 1000n,
 	},
 	sol: {
-		name:         "SOL Price",
-		description:  "Real-time Solana/USD price",
-		pricePerCall: 500n,   // $0.0005
+		name: "SOL Price",
+		description: "Real-time Solana/USD price",
+		pricePerCall: 500n, // $0.0005
 	},
 	gas: {
-		name:         "Gas Tracker",
-		description:  "Ethereum gas prices (fast / standard / slow) in gwei",
+		name: "Gas Tracker",
+		description: "Ethereum gas prices (fast / standard / slow) in gwei",
 		pricePerCall: 500n,
 	},
 };
@@ -102,7 +102,9 @@ export async function autoRegisterBuiltins(): Promise<void> {
 			);
 
 			if (result) {
-				console.log(`[api] registered "${def.name}" apiId=${result.apiId} txHash=${result.txHash}`);
+				console.log(
+					`[api] registered "${def.name}" apiId=${result.apiId} txHash=${result.txHash}`
+				);
 			} else {
 				console.warn(`[api] failed to register built-in "${def.name}"`);
 			}
@@ -124,26 +126,26 @@ router.get("/catalog", async (_req: Request, res: Response) => {
 	const catalog = onChain
 		.filter((api) => api.active)
 		.map((api) => ({
-			apiId:        api.apiId,
-			name:         api.name,
-			endpoint:     api.endpoint,
-			callUrl:      `/api/v1/call/${api.apiId}`,
+			apiId: api.apiId,
+			name: api.name,
+			endpoint: api.endpoint,
+			callUrl: `/api/v1/call/${api.apiId}`,
 			pricePerCall: api.pricePerCall.toString(),
-			priceUsd:     (Number(api.pricePerCall) / 1_000_000).toFixed(6),
-			provider:     api.provider,
-			currency:     "USDC",
-			network:      process.env.CHAIN_NAME || "morph_hoodi",
+			priceUsd: (Number(api.pricePerCall) / 1_000_000).toFixed(6),
+			provider: api.provider,
+			currency: "USDC",
+			network: process.env.CHAIN_NAME || "morph_hoodi",
 		}));
 
 	res.json({
 		success: true,
-		count:   catalog.length,
+		count: catalog.length,
 		catalog,
 		payment: {
-			scheme:      "x402",
+			scheme: "x402",
 			facilitator: process.env.X402_FACILITATOR_ADDRESS,
-			nonceUrl:    "/payment/nonce",
-			verifyUrl:   "/payment/verify",
+			nonceUrl: "/payment/nonce",
+			verifyUrl: "/payment/verify",
 		},
 	});
 });
@@ -159,42 +161,42 @@ router.get("/catalog", async (_req: Request, res: Response) => {
 // Only reachable from the proxy (or directly for testing).
 // In production, restrict this to localhost-only traffic.
 // ---------------------------------------------------------------------------
-router.get("/internal/:key", (req: Request, res: Response) => {
+router.get("/:key", (req: Request, res: Response) => {
 	const key = param(req.params.key);
 
 	switch (key) {
 		case "btc":
 			return res.json({
-				symbol:    "BTC",
-				price:     65000 + Math.floor(Math.random() * 2000),
-				currency:  "USD",
+				symbol: "BTC",
+				price: 65000 + Math.floor(Math.random() * 2000),
+				currency: "USD",
 				timestamp: Date.now(),
 			});
 
 		case "eth":
 			return res.json({
-				symbol:    "ETH",
-				price:     3200 + Math.floor(Math.random() * 200),
-				currency:  "USD",
+				symbol: "ETH",
+				price: 3200 + Math.floor(Math.random() * 200),
+				currency: "USD",
 				timestamp: Date.now(),
 			});
 
 		case "sol":
 			return res.json({
-				symbol:    "SOL",
-				price:     140 + Math.floor(Math.random() * 20),
-				currency:  "USD",
+				symbol: "SOL",
+				price: 140 + Math.floor(Math.random() * 20),
+				currency: "USD",
 				timestamp: Date.now(),
 			});
 
 		case "gas": {
 			const base = 20 + Math.floor(Math.random() * 30);
 			return res.json({
-				network:   "ethereum",
-				unit:      "gwei",
-				fast:      base + 10,
-				standard:  base + 3,
-				slow:      base,
+				network: "ethereum",
+				unit: "gwei",
+				fast: base + 10,
+				standard: base + 3,
+				slow: base,
 				timestamp: Date.now(),
 			});
 		}
@@ -228,37 +230,38 @@ router.all("/call/:apiId", async (req: Request, res: Response) => {
 	if (!api) {
 		return res.status(404).json({
 			success: false,
-			error:   `API not found: ${apiId}`,
+			error: `API not found: ${apiId}`,
 		});
 	}
 
 	if (!api.active) {
 		return res.status(410).json({
 			success: false,
-			error:   "This API has been deactivated by the provider",
+			error: "This API has been deactivated by the provider",
 		});
 	}
 
-	const price    = BigInt(api.pricePerCall);
+	const price = BigInt(api.pricePerCall);
 	const provider = api.provider;
 
 	// Step 2 — payment middleware
-	requirePayment(price, provider, apiId, api.name)(req, res, async () => {
+	requirePayment(
+		price,
+		provider,
+		apiId,
+		api.name
+	)(req, res, async () => {
 		// Step 3 — build upstream URL (forward query string)
-		const queryString = new URLSearchParams(
-			req.query as Record<string, string>
-		).toString();
-		const upstreamUrl = queryString
-			? `${api.endpoint}?${queryString}`
-			: api.endpoint;
+		const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
+		const upstreamUrl = queryString ? `${api.endpoint}?${queryString}` : api.endpoint;
 
 		// Step 4 — proxy
 		try {
 			const upstreamRes = await fetch(upstreamUrl, {
-				method:  req.method,
+				method: req.method,
 				headers: {
-					"Content-Type":      "application/json",
-					"User-Agent":        "AgentMesh-Gateway/1.0.0",
+					"Content-Type": "application/json",
+					"User-Agent": "AgentMesh-Gateway/1.0.0",
 					"X-AgentMesh-Payer": req.paymentPayload?.payer ?? "",
 					"X-AgentMesh-Nonce": req.paymentPayload?.nonce ?? "",
 				},
@@ -268,7 +271,7 @@ router.all("/call/:apiId", async (req: Request, res: Response) => {
 			});
 
 			const contentType = upstreamRes.headers.get("content-type") ?? "";
-			const isJson      = contentType.includes("application/json");
+			const isJson = contentType.includes("application/json");
 
 			res.status(upstreamRes.status);
 
@@ -279,9 +282,9 @@ router.all("/call/:apiId", async (req: Request, res: Response) => {
 					data,
 					payment: {
 						apiId,
-						apiName:  api.name,
+						apiName: api.name,
 						provider: req.paymentPayload?.provider,
-						nonce:    req.paymentPayload?.nonce,
+						nonce: req.paymentPayload?.nonce,
 					},
 				});
 			} else {
@@ -292,12 +295,12 @@ router.all("/call/:apiId", async (req: Request, res: Response) => {
 			// Upstream unreachable — payment was verified and will settle on-chain.
 			res.status(502).json({
 				success: false,
-				error:   "Upstream provider unreachable",
-				detail:  err.message,
+				error: "Upstream provider unreachable",
+				detail: err.message,
 				payment: {
 					apiId,
 					nonce: req.paymentPayload?.nonce,
-					note:  "Payment was authorized. Settlement may still occur on-chain.",
+					note: "Payment was authorized. Settlement may still occur on-chain.",
 				},
 			});
 		}
