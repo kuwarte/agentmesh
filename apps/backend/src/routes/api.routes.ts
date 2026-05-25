@@ -161,7 +161,9 @@ router.get("/catalog", async (_req: Request, res: Response) => {
 // Only reachable from the proxy (or directly for testing).
 // In production, restrict this to localhost-only traffic.
 // ---------------------------------------------------------------------------
-router.get("/:key", (req: Request, res: Response) => {
+export const internalRoutes = Router();
+
+internalRoutes.get("/:key", (req: Request, res: Response) => {
 	const key = param(req.params.key);
 
 	switch (key) {

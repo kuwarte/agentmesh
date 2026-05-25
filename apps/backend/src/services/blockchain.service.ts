@@ -40,7 +40,7 @@ export interface PaymentPayload {
 	nonce: string;
 	deadline: number;
 	signature: string;
-	apiId?: string;   // bytes32 hex — passed to settle() and emitted in PaymentSettled
+	apiId?: string; // bytes32 hex — passed to settle() and emitted in PaymentSettled
 }
 
 // service
@@ -109,6 +109,16 @@ class BlockchainService {
 
 	async settlePayment(payload: PaymentPayload) {
 		try {
+			const feeData = await provider.getFeeData();
+			const gasOverrides = feeData.maxFeePerGas
+				? {
+						maxFeePerGas: feeData.maxFeePerGas * 2n,
+						maxPriorityFeePerGas: (feeData.maxPriorityFeePerGas ?? 1000000000n) * 2n,
+					}
+				: {
+						gasPrice: (feeData.gasPrice ?? 1000000000n) * 2n,
+					};
+
 			const tx = await facilitator.settle(
 				payload.payer,
 				payload.provider,
@@ -116,7 +126,8 @@ class BlockchainService {
 				payload.nonce,
 				payload.deadline,
 				payload.apiId ?? ethers.ZeroHash,
-				payload.signature
+				payload.signature,
+				gasOverrides
 			);
 
 			const receipt = await tx.wait();
@@ -223,7 +234,11 @@ class BlockchainService {
 	}
 
 	// Register a new API on-chain (called by provider via backend)
-	async registerAPI(name: string, endpoint: string, pricePerCall: bigint): Promise<{ apiId: string; txHash: string } | null> {
+	async registerAPI(
+		name: string,
+		endpoint: string,
+		pricePerCall: bigint
+	): Promise<{ apiId: string; txHash: string } | null> {
 		try {
 			const registryWithSigner = registry.connect(signer) as typeof registry;
 			const tx = await registryWithSigner.registerAPI(name, endpoint, pricePerCall);
@@ -250,7 +265,11 @@ class BlockchainService {
 	}
 
 	// Update API price / active status on-chain (provider only)
-	async updateAPI(apiId: string, newPrice: bigint, active: boolean): Promise<{ txHash: string } | null> {
+	async updateAPI(
+		apiId: string,
+		newPrice: bigint,
+		active: boolean
+	): Promise<{ txHash: string } | null> {
 		try {
 			const registryWithSigner = registry.connect(signer) as typeof registry;
 			const tx = await registryWithSigner.updateAPI(apiId, newPrice, active);
@@ -265,15 +284,13 @@ class BlockchainService {
 	// Replay PaymentSettled events from X402Facilitator to rebuild the ledger
 	// after a server restart. The chain is the source of truth.
 	// Paginates in 5000-block chunks to respect Morph Hoodi RPC limits.
-	async replayLedgerFromChain(
-		ledger: import("./ledger.service").LedgerService
-	): Promise<void> {
+	async replayLedgerFromChain(ledger: import("./ledger.service").LedgerService): Promise<void> {
 		try {
 			console.log("[ledger] Replaying PaymentSettled events from chain...");
 
-			const CHUNK      = 5000;
-			const latest     = await provider.getBlockNumber();
-			const EXPLORER   = "https://explorer-hoodi.morphl2.io/tx";
+			const CHUNK = 5000;
+			const latest = await provider.getBlockNumber();
+			const EXPLORER = "https://explorer-hoodi.morphl2.io/tx";
 			const deployBlock = Number(process.env.FACILITATOR_DEPLOY_BLOCK ?? 5520000);
 
 			// Build a name lookup from the registry for provider address → API name
@@ -287,8 +304,8 @@ class BlockchainService {
 				const to = Math.min(from + CHUNK - 1, latest);
 				try {
 					const filter = facilitator.filters.PaymentSettled();
-					const chunk  = await facilitator.queryFilter(filter, from, to);
-					allEvents    = allEvents.concat(chunk as ethers.EventLog[]);
+					const chunk = await facilitator.queryFilter(filter, from, to);
+					allEvents = allEvents.concat(chunk as ethers.EventLog[]);
 				} catch {
 					// Skip chunks that fail — non-fatal
 				}
@@ -296,9 +313,11 @@ class BlockchainService {
 				// Log progress every 5 chunks (25000 blocks)
 				if (chunksScanned % 5 === 0) {
 					const scanned = from - deployBlock;
-					const total   = latest - deployBlock;
-					const pct     = total > 0 ? Math.round((scanned / total) * 100) : 100;
-					console.log(`[ledger] Scanning... block ${from}/${latest} (${pct}%) — ${allEvents.length} events found`);
+					const total = latest - deployBlock;
+					const pct = total > 0 ? Math.round((scanned / total) * 100) : 100;
+					console.log(
+						`[ledger] Scanning... block ${from}/${latest} (${pct}%) — ${allEvents.length} events found`
+					);
 				}
 			}
 
@@ -310,16 +329,16 @@ class BlockchainService {
 			for (const e of allEvents) {
 				if (!e.args) continue;
 
-				const payer  = e.args[0] as string;
-				const prov   = e.args[1] as string;
+				const payer = e.args[0] as string;
+				const prov = e.args[1] as string;
 				const amount = e.args[2] as bigint;
-				const fee    = e.args[3] as bigint;
-				const nonce  = e.args[4] as string;
-				const apiId  = e.args[5] as string; // bytes32 — added in v2 contract
+				const fee = e.args[3] as bigint;
+				const nonce = e.args[4] as string;
+				const apiId = e.args[5] as string; // bytes32 — added in v2 contract
 				const txHash = e.transactionHash;
 
 				// Resolve apiId → apiName from registry
-				let resolvedApiId   = apiId && apiId !== ethers.ZeroHash ? apiId : "";
+				let resolvedApiId = apiId && apiId !== ethers.ZeroHash ? apiId : "";
 				let resolvedApiName = "";
 
 				if (resolvedApiId) {
@@ -331,7 +350,7 @@ class BlockchainService {
 				if (!resolvedApiName) {
 					const nonceMeta = nonceService.getMeta(nonce);
 					if (nonceMeta?.apiName) {
-						resolvedApiId   = nonceMeta.apiId;
+						resolvedApiId = nonceMeta.apiId;
 						resolvedApiName = nonceMeta.apiName;
 					}
 				}
@@ -340,18 +359,18 @@ class BlockchainService {
 					resolvedApiName = `API (provider: ${prov.slice(0, 10)}...)`;
 				}
 
-				const block     = await provider.getBlock(e.blockNumber);
+				const block = await provider.getBlock(e.blockNumber);
 				const timestamp = block ? block.timestamp * 1000 : Date.now();
 
 				ledger.record({
 					txHash,
-					apiId:       resolvedApiId,
-					apiName:     resolvedApiName,
+					apiId: resolvedApiId,
+					apiName: resolvedApiName,
 					payer,
-					provider:    prov,
-					amount:      amount.toString(),
-					amountUsd:   (Number(amount) / 1_000_000).toFixed(6),
-					fee:         fee.toString(),
+					provider: prov,
+					amount: amount.toString(),
+					amountUsd: (Number(amount) / 1_000_000).toFixed(6),
+					fee: fee.toString(),
 					nonce,
 					timestamp,
 					explorerUrl: `${EXPLORER}/${txHash}`,

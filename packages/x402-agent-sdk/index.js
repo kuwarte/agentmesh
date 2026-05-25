@@ -226,8 +226,8 @@ class X402Agent {
 		this.autoApprove = autoApprove;
 		/** @type {boolean} Auto‑mint test tokens. */
 		this.autoMint = autoMint;
-		/** @type {number} Delay after each payment (ms). */
-		this.settleDelay = settleDelay;
+		/** @type {number} Delay after each payment (ms). Minimum 300ms to allow on-chain settlement. */
+		this.settleDelay = Math.max(300, settleDelay);
 		/** @type {Function|null} Event callback for programmatic integration. */
 		this.onEvent = typeof onEvent === "function" ? onEvent : null;
 		/** @type {number} Catalog cache TTL in ms (0 = never expire). */
