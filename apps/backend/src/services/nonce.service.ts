@@ -6,14 +6,17 @@
  * rejects duplicate nonces instantly without an RPC call.
  *
  * TTL: 24 hours (nonces expire after the on-chain deadline window).
- * Note: resets on server restart. The X402Facilitator contract's
- * on-chain usedNonces mapping is the permanent source of truth.
+ * The X402Facilitator contract's on-chain usedNonces mapping is the
+ * permanent source of truth for replay protection.
+ *
+ * apiId is now emitted directly in the PaymentSettled event (v2 contract),
+ * so no disk persistence is needed for ledger replay.
  */
 
 type NonceEntry = {
-	usedAt: number;
+	usedAt:  number;
 	provider: string;
-	amount: string;
+	amount:   string;
 };
 
 class NonceService {
@@ -38,9 +41,13 @@ class NonceService {
 		return true;
 	}
 
+	// Keep getMeta for backward compat with old events during replay transition
+	getMeta(_nonce: string): { apiId: string; apiName: string } | null {
+		return null;
+	}
+
 	private gc() {
 		const now = Date.now();
-
 		for (const [nonce, entry] of this.store) {
 			if (now - entry.usedAt > this.TTL) {
 				this.store.delete(nonce);

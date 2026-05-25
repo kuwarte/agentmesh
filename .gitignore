@@ -81,6 +81,9 @@ packages/contracts/broadcast/
 # =====================================================
 .turbo/
 
+# Nonce→API persistence file (runtime data, not source)
+.nonce-api-map.json
+
 # =====================================================
 # Database
 # =====================================================

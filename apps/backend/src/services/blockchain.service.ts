@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import APIRegistry from "../../../../packages/contracts/out/APIRegistry.sol/APIRegistry.json";
 import X402Facilitator from "../../../../packages/contracts/out/X402Facilitator.sol/X402Facilitator.json";
+import { nonceService } from "./nonce.service";
 
 /**
  * blockchain.service.ts
@@ -39,6 +40,7 @@ export interface PaymentPayload {
 	nonce: string;
 	deadline: number;
 	signature: string;
+	apiId?: string;   // bytes32 hex — passed to settle() and emitted in PaymentSettled
 }
 
 // service
@@ -107,15 +109,13 @@ class BlockchainService {
 
 	async settlePayment(payload: PaymentPayload) {
 		try {
-			// Option B: gateway calls settle(payer, ...) on behalf of the agent.
-			// The contract verifies the signature matches payer, not msg.sender,
-			// enabling fully autonomous gateway-mediated settlement.
 			const tx = await facilitator.settle(
 				payload.payer,
 				payload.provider,
 				payload.amount,
 				payload.nonce,
 				payload.deadline,
+				payload.apiId ?? ethers.ZeroHash,
 				payload.signature
 			);
 
@@ -138,7 +138,7 @@ class BlockchainService {
 		try {
 			const ids = await registry.getAllAPIs();
 
-			const results = await Promise.all(
+			const results = await Promise.allSettled(
 				ids.map(async (id: string) => {
 					const api = await registry.getAPI(id);
 
@@ -153,14 +153,17 @@ class BlockchainService {
 				})
 			);
 
-			return results.map((api) => ({
-				apiId: api.apiId,
-				provider: api.provider,
-				name: api.name,
-				endpoint: api.endpoint,
-				pricePerCall: api.pricePerCall?.toString?.() ?? api.pricePerCall,
-				active: api.active,
-			}));
+			return results
+				.filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
+				.map((r) => r.value)
+				.map((api) => ({
+					apiId: api.apiId,
+					provider: api.provider,
+					name: api.name,
+					endpoint: api.endpoint,
+					pricePerCall: api.pricePerCall?.toString?.() ?? api.pricePerCall,
+					active: api.active,
+				}));
 		} catch (err) {
 			console.error("[registry] failed:", err);
 			return [];
@@ -312,19 +315,29 @@ class BlockchainService {
 				const amount = e.args[2] as bigint;
 				const fee    = e.args[3] as bigint;
 				const nonce  = e.args[4] as string;
+				const apiId  = e.args[5] as string; // bytes32 — added in v2 contract
 				const txHash = e.transactionHash;
 
-				// Match API name: check on-chain registry first, then built-in endpoints
-				const matchedOnChain = allAPIs.find(
-					(a) => a.provider.toLowerCase() === prov.toLowerCase()
-				);
+				// Resolve apiId → apiName from registry
+				let resolvedApiId   = apiId && apiId !== ethers.ZeroHash ? apiId : "";
+				let resolvedApiName = "";
 
-				let apiId   = matchedOnChain?.apiId ?? "";
-				let apiName = matchedOnChain?.name ?? "";
+				if (resolvedApiId) {
+					const matched = allAPIs.find((a) => a.apiId === resolvedApiId);
+					resolvedApiName = matched?.name ?? "";
+				}
 
-				// Final fallback: use provider address as identifier
-				if (!apiName) {
-					apiName = `API (provider: ${prov.slice(0, 10)}...)`;
+				// Fallback for old events (pre-v2 contract) that have no apiId
+				if (!resolvedApiName) {
+					const nonceMeta = nonceService.getMeta(nonce);
+					if (nonceMeta?.apiName) {
+						resolvedApiId   = nonceMeta.apiId;
+						resolvedApiName = nonceMeta.apiName;
+					}
+				}
+
+				if (!resolvedApiName) {
+					resolvedApiName = `API (provider: ${prov.slice(0, 10)}...)`;
 				}
 
 				const block     = await provider.getBlock(e.blockNumber);
@@ -332,8 +345,8 @@ class BlockchainService {
 
 				ledger.record({
 					txHash,
-					apiId,
-					apiName,
+					apiId:       resolvedApiId,
+					apiName:     resolvedApiName,
 					payer,
 					provider:    prov,
 					amount:      amount.toString(),

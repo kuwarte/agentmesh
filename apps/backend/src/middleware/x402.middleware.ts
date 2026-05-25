@@ -179,7 +179,7 @@ export function requirePayment(
 		// Settle on-chain after response is sent, then record in ledger
 		res.on("finish", () => {
 			if (res.statusCode >= 200 && res.statusCode < 300) {
-				blockchainService.settlePayment(payload).then((settlement) => {
+				blockchainService.settlePayment({ ...payload, apiId }).then((settlement) => {
 					if (settlement.success && settlement.txHash) {
 						const fee = (amountBig * 100n) / 10000n;
 						ledgerService.record({

@@ -59,13 +59,15 @@ contract X402Facilitator {
      * @param amount Total payment amount (before fee)
      * @param fee Platform fee charged
      * @param nonce Unique nonce for this payment
+     * @param apiId Registry API identifier (bytes32(0) if not provided)
      */
     event PaymentSettled(
         address indexed payer,
         address indexed provider,
         uint256 amount,
         uint256 fee,
-        bytes32 nonce
+        bytes32 nonce,
+        bytes32 apiId
     );
 
     /**
@@ -97,6 +99,7 @@ contract X402Facilitator {
      * @param amount  Total payment in USDC (6 decimals, e.g., 1000 = $0.001)
      * @param nonce   Unique identifier for this payment (prevents replay)
      * @param deadline Unix timestamp when the authorization expires
+     * @param apiId   Registry API identifier (pass bytes32(0) if unknown)
      * @param signature ECDSA signature from payer over (facilitator, payer, provider, amount, nonce, deadline)
      * @return bool True if payment succeeded
      *
@@ -115,6 +118,7 @@ contract X402Facilitator {
         uint256 amount,
         bytes32 nonce,
         uint256 deadline,
+        bytes32 apiId,
         bytes calldata signature
     ) external returns (bool) {
         require(block.timestamp <= deadline, "Expired");
@@ -161,7 +165,7 @@ contract X402Facilitator {
             );
         }
 
-        emit PaymentSettled(payer, provider, amount, fee, nonce);
+        emit PaymentSettled(payer, provider, amount, fee, nonce, apiId);
         return true;
     }
 
