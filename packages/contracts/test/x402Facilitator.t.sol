@@ -34,6 +34,9 @@ contract X402FacilitatorTest is Test {
     uint256 payerPrivateKey = 0xA11CE;
     address payer;
 
+    // Dummy apiId for tests — bytes32(0) is valid (unknown API)
+    bytes32 constant TEST_API_ID = bytes32(0);
+
     function setUp() public {
         usdc = new MockUSDC();
         facilitator = new X402Facilitator(address(usdc), treasury);
@@ -76,7 +79,7 @@ contract X402FacilitatorTest is Test {
 
         // Gateway (not payer) calls settle — this is the key Option B behavior
         vm.prank(gateway);
-        bool ok = facilitator.settle(payer, provider, amount, nonce, deadline, signature);
+        bool ok = facilitator.settle(payer, provider, amount, nonce, deadline, TEST_API_ID, signature);
 
         assertTrue(ok);
 
@@ -96,11 +99,11 @@ contract X402FacilitatorTest is Test {
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(gateway);
-        facilitator.settle(payer, provider, amount, nonce, deadline, signature);
+        facilitator.settle(payer, provider, amount, nonce, deadline, TEST_API_ID, signature);
 
         vm.expectRevert("Nonce used");
         vm.prank(gateway);
-        facilitator.settle(payer, provider, amount, nonce, deadline, signature);
+        facilitator.settle(payer, provider, amount, nonce, deadline, TEST_API_ID, signature);
     }
 
     /// @notice Wrong signer must fail
@@ -117,7 +120,7 @@ contract X402FacilitatorTest is Test {
 
         vm.expectRevert("Invalid signature");
         vm.prank(gateway);
-        facilitator.settle(payer, provider, amount, nonce, deadline, signature);
+        facilitator.settle(payer, provider, amount, nonce, deadline, TEST_API_ID, signature);
     }
 
     /// @notice Expired deadline must fail
@@ -132,6 +135,26 @@ contract X402FacilitatorTest is Test {
 
         vm.expectRevert("Expired");
         vm.prank(gateway);
-        facilitator.settle(payer, provider, amount, nonce, deadline, signature);
+        facilitator.settle(payer, provider, amount, nonce, deadline, TEST_API_ID, signature);
+    }
+
+    /// @notice apiId is emitted in PaymentSettled event
+    function testApiIdEmittedInEvent() public {
+        uint256 amount = 1000;
+        bytes32 nonce = keccak256("nonce5");
+        uint256 deadline = block.timestamp + 300;
+        bytes32 apiId = keccak256("some-api-id");
+
+        bytes32 msgHash = _buildMessageHash(payer, provider, amount, nonce, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(payerPrivateKey, msgHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        uint256 fee = (amount * 100) / 10000;
+
+        vm.expectEmit(true, true, false, true);
+        emit X402Facilitator.PaymentSettled(payer, provider, amount, fee, nonce, apiId);
+
+        vm.prank(gateway);
+        facilitator.settle(payer, provider, amount, nonce, deadline, apiId, signature);
     }
 }
