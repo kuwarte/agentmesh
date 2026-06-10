@@ -4,7 +4,7 @@
 
 AgentMesh is an x402 agentic payment platform built on [Morph L2](https://morphl2.io). It lets AI agents autonomously purchase API access using on-chain USDC micropayments, with a 1% platform fee and 99% going directly to API providers.
 
-> Built on Morph Hoodi Testnet · Chain ID `2910`
+> **Marketplace** — [x402agentmesh.vercel.app](https://x402agentmesh.vercel.app) · Built on Morph Hoodi Testnet · Chain ID `2910`
 
 ---
 
@@ -76,6 +76,19 @@ agentmesh/
 | `APIRegistry.sol` | [`0x007c677F96A5E934D84502Ccd81FD161023b2cfA`](https://explorer-hoodi.morphl2.io/address/0x007c677F96A5E934D84502Ccd81FD161023b2cfA) | On-chain API registry — stores name, endpoint, price, provider |
 | `X402Facilitator.sol` | [`0x980938b322d653789dE859b4aB0119C0b02016f4`](https://explorer-hoodi.morphl2.io/address/0x980938b322d653789dE859b4aB0119C0b02016f4) | Payment settlement — verifies ECDSA sig, splits USDC (99/1%) |
 | `MockUSDC.sol` | [`0xC6F74786d5a0149611a77a2C2ABE1A049C48d492`](https://explorer-hoodi.morphl2.io/address/0xC6F74786d5a0149611a77a2C2ABE1A049C48d492) | ERC-20 test token with built-in faucet (1000 USDC/hr per wallet) |
+
+### Built-in Feeds
+
+The gateway ships with four built-in paid APIs that auto-register on-chain at startup:
+
+| Feed | Route | Price | Note |
+|---|---|---|---|
+| BTC Price | `/api/v1/call/<apiId>` | $0.001 USDC | **Mock data** — randomised price |
+| ETH Price | `/api/v1/call/<apiId>` | $0.001 USDC | **Mock data** — randomised price |
+| SOL Price | `/api/v1/call/<apiId>` | $0.0005 USDC | **Mock data** — randomised price |
+| Gas Tracker | `/api/v1/call/<apiId>` | $0.0005 USDC | **Mock data** — randomised gwei values |
+
+> The built-in feeds return simulated data. They exist to demonstrate the full x402 payment flow end-to-end on testnet. Replace the handlers in `src/routes/api.routes.ts` (`/internal/:key`) with real data sources for production use.
 
 ---
 
@@ -236,6 +249,7 @@ forge script script/Deploy.s.sol \
 RPC_URL=https://rpc-hoodi.morphl2.io
 CHAIN_NAME=morph_hoodi
 GATEWAY_PRIVATE_KEY=<YOUR_PRIVATE_KEY>
+GATEWAY_URL=http://localhost:3001              # change to your deployed URL before first run
 API_REGISTRY_ADDRESS=0x007c677F96A5E934D84502Ccd81FD161023b2cfA
 X402_FACILITATOR_ADDRESS=0x980938b322d653789dE859b4aB0119C0b02016f4
 USDC_ADDRESS=0xC6F74786d5a0149611a77a2C2ABE1A049C48d492
@@ -244,12 +258,20 @@ TREASURY_ADDRESS=<YOUR_WALLET_ADDRESS>
 FACILITATOR_DEPLOY_BLOCK=5652133          # avoids scanning from block 0
 ```
 
+> `GATEWAY_URL` must be set to your actual public URL before the first run. At startup the server calls `autoRegisterBuiltins()` which registers the built-in feed endpoints on-chain using this value. If it's left as `localhost`, those entries on-chain will point to an unreachable address.
+
 ### 5 — Start the backend
 
 ```bash
 cd apps/backend
 pnpm install
+
+# development (hot reload)
 pnpm dev
+
+# production build
+pnpm build
+pnpm start
 # → http://localhost:3001
 ```
 
