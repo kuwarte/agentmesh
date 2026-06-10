@@ -1,7 +1,7 @@
 import { defineChain } from 'viem'
 
 export const morph = defineChain({
-  id: 2910, // Morph mainnet = 2818 (adjust if testnet = 2910)
+  id: 2818,
   name: 'Morph',
   nativeCurrency: {
     name: 'Ether',

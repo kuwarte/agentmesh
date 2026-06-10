@@ -1,21 +1,38 @@
 'use client'
 
-import { WagmiProvider, createConfig, http } from 'wagmi'
-import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors'
+import {
+  WagmiProvider,
+  createConfig,
+  http,
+  injected,
+  type CreateConnectorFn,
+} from 'wagmi'
+import { coinbaseWallet, walletConnect } from 'wagmi/connectors'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { morph } from '@/lib/chains'
 
-const projectId = 'YOUR_WALLETCONNECT_PROJECT_ID'
+const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+
+const connectors: CreateConnectorFn[] = [
+  injected({ unstable_shimAsyncInject: 1_000 }),
+  coinbaseWallet({ appName: 'AgentMesh' }),
+]
+
+if (walletConnectProjectId) {
+  connectors.push(
+    walletConnect({
+      projectId: walletConnectProjectId,
+      showQrModal: true,
+    }),
+  )
+}
 
 const config = createConfig({
   chains: [morph],
-  connectors: [
-    injected(),
-    walletConnect({ projectId }),
-    coinbaseWallet({ appName: 'AgentMesh' }),
-  ],
+  connectors,
+  ssr: true,
   transports: {
-    [morph.id]: http(),
+    [morph.id]: http(morph.rpcUrls.default.http[0]),
   },
 })
 

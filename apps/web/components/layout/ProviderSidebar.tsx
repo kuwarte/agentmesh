@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useAccount, useDisconnect } from 'wagmi'
 import styles from './AppSidebar.module.css'
 
@@ -51,12 +51,11 @@ const PROVIDER_NAV = [
 
 export default function ProviderSidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
 
   const shortAddress = address
-    ? `${address.slice(0, 6)}…${address.slice(-4)}`
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
     : ''
 
   const handleDisconnect = () => {

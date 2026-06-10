@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useConnect, useConnections, useDisconnect } from "wagmi";
+import { morph } from "@/lib/chains";
 import styles from "./AppSidebar.module.css";
 
 const NAV_ITEMS = [
@@ -52,13 +53,19 @@ export default function AppSidebar() {
 
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
+  const connections = useConnections();
   const { disconnect } = useDisconnect();
 
-  const connector = connectors[0];
+  const connector =
+    connectors.find((connector) => connector.type === "injected") ??
+    connectors[0];
 
   const shortAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : connections[0]?.accounts[0]
+      ? `${connections[0].accounts[0].slice(0, 6)}...${connections[0].accounts[0].slice(-4)}`
     : "";
+  const hasWalletConnection = isConnected || connections.length > 0;
 
   return (
     <aside className={styles.sidebar}>
@@ -110,11 +117,11 @@ export default function AppSidebar() {
           Be a Provider
         </Link>
 
-        {!isConnected ? (
+        {!hasWalletConnection ? (
           <button
             className={styles.walletBtn}
-            onClick={() => connect({ connector })}
-            disabled={isPending}
+            onClick={() => connector && connect({ connector, chainId: morph.id })}
+            disabled={isPending || !connector}
           >
             <svg
               width="14"
