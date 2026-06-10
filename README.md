@@ -1,0 +1,342 @@
+# AgentMesh
+
+**Autonomous AI agents that discover, pay for, and call APIs — no human in the loop.**
+
+AgentMesh is an x402 agentic payment platform built on [Morph L2](https://morphl2.io). It lets AI agents autonomously purchase API access using on-chain USDC micropayments, with a 1% platform fee and 99% going directly to API providers.
+
+> Built on Morph Hoodi Testnet · Chain ID `2910`
+
+---
+
+## What It Does
+
+```
+AI Agent  ──(picks tool)──▶  x402 Gateway  ──(settle USDC)──▶  Morph L2
+                                    │
+                            ◀────(API data)─────
+```
+
+1. An AI agent queries the **service catalog** to discover available paid APIs
+2. It signs an off-chain payment voucher and attaches it as an `X-Payment` header
+3. The gateway verifies the signature and calls `X402Facilitator.settle()` on-chain
+4. The API response is returned — the provider wallet receives payment atomically
+
+No 402 dance, no subscriptions, no API keys. Just sign and call.
+
+---
+
+## Repository Structure
+
+```
+agentmesh/
+├── apps/
+│   ├── web/                    # Next.js 15 frontend (Vercel)
+│   │   ├── app/
+│   │   │   ├── marketplace/    # API discovery + detail pages
+│   │   │   ├── provider/       # Provider dashboard + earnings
+│   │   │   └── api/            # Next.js API routes (wallet auth)
+│   │   ├── components/
+│   │   │   ├── layout/         # AppSidebar, Footer, Nav
+│   │   │   └── sections/       # Landing page sections
+│   │   ├── lib/
+│   │   │   ├── apis.ts         # Static API catalog (→ Supabase)
+│   │   │   ├── supabase.ts     # Supabase browser + server clients
+│   │   │   └── chains.tsx      # Morph L2 wagmi chain config
+│   │   └── hooks/
+│   │       └── useReveal.tsx   # Scroll-reveal animation hook
+│   │
+│   └── backend/                # Express gateway (Node.js, port 3001)
+│       └── src/
+│           ├── server.ts
+│           ├── routes/         # api, payment, registry, dashboard, faucet
+│           ├── services/       # blockchain, ledger, nonce
+│           └── middleware/
+│               └── x402.middleware.ts   # Payment verification
+│
+├── packages/
+│   ├── contracts/              # Foundry (Solidity)
+│   │   └── src/
+│   │       ├── APIRegistry.sol
+│   │       ├── X402Facilitator.sol
+│   │       └── MockUSDC.sol
+│   │
+│   └── x402-agent-sdk/         # Reusable agent SDK (ESM)
+│       └── index.js            # X402Agent class + createX402Agent()
+│
+└── demo-agent/
+    └── agent.mjs               # Standalone demo agent
+```
+
+---
+
+## Contracts (Morph Hoodi Testnet)
+
+| Contract | Address | Role |
+|---|---|---|
+| `APIRegistry.sol` | [`0x007c677F96A5E934D84502Ccd81FD161023b2cfA`](https://explorer-hoodi.morphl2.io/address/0x007c677F96A5E934D84502Ccd81FD161023b2cfA) | On-chain API registry — stores name, endpoint, price, provider |
+| `X402Facilitator.sol` | [`0x980938b322d653789dE859b4aB0119C0b02016f4`](https://explorer-hoodi.morphl2.io/address/0x980938b322d653789dE859b4aB0119C0b02016f4) | Payment settlement — verifies ECDSA sig, splits USDC (99/1%) |
+| `MockUSDC.sol` | [`0xC6F74786d5a0149611a77a2C2ABE1A049C48d492`](https://explorer-hoodi.morphl2.io/address/0xC6F74786d5a0149611a77a2C2ABE1A049C48d492) | ERC-20 test token with built-in faucet (1000 USDC/hr per wallet) |
+
+---
+
+## Backend API Routes
+
+**Paid APIs** (require `X-Payment` header)
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/v1/catalog` | Full service catalog with prices |
+| `GET` | `/api/v1/btc` | BTC/USD price — $0.001 USDC |
+| `GET` | `/api/v1/eth` | ETH/USD price — $0.001 USDC |
+| `GET` | `/api/v1/sol` | SOL/USD price — $0.0005 USDC |
+| `GET` | `/api/v1/gas` | Gas tracker — $0.0005 USDC |
+| `GET` | `/api/v1/call/:apiId` | Proxy to any registered API |
+
+**Payment**
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/payment/nonce` | Get fresh nonce + deadline (5 min TTL) |
+| `POST` | `/payment/verify` | Pre-flight signature check |
+| `GET` | `/payment/balance/:address` | USDC balance |
+
+**Registry**
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/registry/apis` | List all on-chain APIs |
+| `POST` | `/registry/register` | Register a new API |
+| `PUT` | `/registry/api/:id` | Update price or active status |
+
+**Faucet (testnet)**
+
+| Method | Route | Description |
+|---|---|---|
+| `POST` | `/faucet/mint` | Mint 1000 MockUSDC to an address |
+| `GET` | `/faucet/status/:address` | Check cooldown remaining |
+
+---
+
+## x402 Agent SDK
+
+Install as a local package or copy `packages/x402-agent-sdk/index.js` into your project.
+
+```js
+import { createX402Agent } from './packages/x402-agent-sdk/index.js';
+
+const agent = createX402Agent({
+  // All config is optional — falls back to .env
+  llm: { provider: 'groq' },  // or 'openai'
+  autoMint: true,
+  autoApprove: true,
+});
+
+const result = await agent.run('What is the current BTC price?');
+console.log(result.answer);
+// → "The current BTC price is $65,420."
+console.log(result.metrics);
+// → { totalSpent: '0.001000 USDC', callsMade: 1 }
+```
+
+### SDK Config
+
+| Option | Default | Description |
+|---|---|---|
+| `gateway` | `$GATEWAY_URL` or `localhost:3001` | x402 gateway URL |
+| `privateKey` | `$AGENT_PRIVATE_KEY` | Agent wallet private key |
+| `facilitator` | `$X402_FACILITATOR_ADDRESS` | Facilitator contract address |
+| `llm.provider` | `"groq"` | `"groq"` or `"openai"` |
+| `llm.apiKey` | `$GROQ_API_KEY` | LLM provider API key |
+| `autoMint` | `false` | Auto-mint test USDC when balance is 0 |
+| `autoApprove` | `false` | Auto-approve USDC spending |
+| `maxLoops` | `10` | Max AI reasoning iterations |
+| `settleDelay` | `3000` | ms to wait after each payment (allow on-chain settle) |
+| `onEvent` | `null` | Event hook `(type, payload) => void` |
+
+### Event Hooks
+
+```js
+const agent = createX402Agent({
+  onEvent: (type, payload) => {
+    if (type === 'payment:success') {
+      console.log(`Paid ${payload.amountUsd} USDC to ${payload.provider}`);
+    }
+  }
+});
+```
+
+| Event | Payload fields |
+|---|---|
+| `catalog:loaded` | `count`, `catalog` |
+| `balance:checked` | `address`, `usdcBalance` |
+| `tool:called` | `name`, `apiId`, `args`, `pricePerCall` |
+| `payment:signing` | `callUrl`, `provider`, `amount` |
+| `payment:success` | `callUrl`, `provider`, `amountUsd`, `nonce`, `data` |
+| `payment:failed` | `callUrl`, `status`, `error` |
+| `tool:result` | `name`, `apiId`, `success`, `data` or `error` |
+| `run:complete` | `answer`, `metrics` |
+
+### Direct API Call (bypass LLM)
+
+```js
+// Useful for LangChain tool definitions or custom agent loops
+const result = await agent.callAPI('BTC Price');
+console.log(result.data);       // API response
+console.log(result.amountUsd);  // "0.001000"
+```
+
+---
+
+## Getting Started
+
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full system diagram and payment flow.
+
+### Prerequisites
+
+- [Foundry](https://getfoundry.sh) (`forge`, `cast`)
+- Node.js 18+
+- pnpm
+- A wallet with Hoodi ETH — [Morph faucet](https://morphl2.io/faucet)
+
+### 1 — Build contracts
+
+```bash
+cd packages/contracts
+forge build
+```
+
+ABIs land in `packages/contracts/out/`. The backend imports from there — don't skip this.
+
+### 2 — Deploy MockUSDC
+
+```bash
+forge script script/DeployMockUSDC.s.sol \
+  --rpc-url morph_hoodi \
+  --private-key <YOUR_PRIVATE_KEY> \
+  --broadcast
+```
+
+Copy the printed `MockUSDC` address.
+
+### 3 — Deploy APIRegistry + X402Facilitator
+
+```bash
+USDC_ADDRESS=<MOCK_USDC_ADDRESS> \
+TREASURY_ADDRESS=<YOUR_WALLET_ADDRESS> \
+forge script script/Deploy.s.sol \
+  --rpc-url morph_hoodi \
+  --private-key <YOUR_PRIVATE_KEY> \
+  --broadcast
+```
+
+### 4 — Configure backend `.env`
+
+```bash
+# apps/backend/.env
+RPC_URL=https://rpc-hoodi.morphl2.io
+CHAIN_NAME=morph_hoodi
+GATEWAY_PRIVATE_KEY=<YOUR_PRIVATE_KEY>
+API_REGISTRY_ADDRESS=0x007c677F96A5E934D84502Ccd81FD161023b2cfA
+X402_FACILITATOR_ADDRESS=0x980938b322d653789dE859b4aB0119C0b02016f4
+USDC_ADDRESS=0xC6F74786d5a0149611a77a2C2ABE1A049C48d492
+PROVIDER_ADDRESS=<YOUR_WALLET_ADDRESS>
+TREASURY_ADDRESS=<YOUR_WALLET_ADDRESS>
+FACILITATOR_DEPLOY_BLOCK=5652133          # avoids scanning from block 0
+```
+
+### 5 — Start the backend
+
+```bash
+cd apps/backend
+pnpm install
+pnpm dev
+# → http://localhost:3001
+```
+
+### 6 — Get MockUSDC
+
+```bash
+curl -X POST http://localhost:3001/faucet/mint \
+  -H "Content-Type: application/json" \
+  -d '{"address": "<YOUR_WALLET_ADDRESS>"}'
+```
+
+Or call on-chain directly:
+
+```bash
+cast send 0xC6F74786d5a0149611a77a2C2ABE1A049C48d492 "mint()" \
+  --private-key <YOUR_PRIVATE_KEY> \
+  --rpc-url https://rpc-hoodi.morphl2.io
+```
+
+### 7 — Run the demo agent
+
+```bash
+cd packages/x402-agent-sdk
+cp .env.example .env
+# Fill in GROQ_API_KEY and AGENT_PRIVATE_KEY
+node index.js
+```
+
+Or use the standalone demo:
+
+```bash
+cd demo-agent
+node agent.mjs "Analyze the crypto market and give a trading recommendation"
+```
+
+The agent auto-mints, auto-approves, picks the right tools, pays, and returns an answer.
+
+---
+
+## Running Contract Tests
+
+```bash
+cd packages/contracts
+forge test -vv
+```
+
+---
+
+## Troubleshooting
+
+| Error | Fix |
+|---|---|
+| `RPC not available` | Check https://rpc-hoodi.morphl2.io status |
+| `Invalid signature` | `payer` in `X-Payment` must match the signing wallet; check `FACILITATOR_ADDRESS` matches across `.env` files |
+| `Nonce used` | Nonces are single-use — fetch a fresh one from `GET /payment/nonce` |
+| `Provider payment failed` | Agent wallet hasn't approved the facilitator, or has no MockUSDC |
+| `Cooldown active` | Faucet allows 1 mint/hr per wallet — check `GET /faucet/status/:address` |
+| `Expired` | Nonces expire in 5 minutes |
+| `ABIs not found` | Run `forge build` in `packages/contracts` first |
+| Slow ledger replay on startup | Set `FACILITATOR_DEPLOY_BLOCK` in `.env` to the deployment block number |
+
+---
+
+## Network
+
+| | |
+|---|---|
+| Network | Morph Hoodi Testnet |
+| Chain ID | `2910` |
+| RPC | `https://rpc-hoodi.morphl2.io` |
+| Explorer | `https://explorer-hoodi.morphl2.io` |
+| APIRegistry | `0x007c677F96A5E934D84502Ccd81FD161023b2cfA` |
+| X402Facilitator | `0x980938b322d653789dE859b4aB0119C0b02016f4` |
+| MockUSDC | `0xC6F74786d5a0149611a77a2C2ABE1A049C48d492` |
+| Deployed at block | `5652133` |
+
+---
+
+## Tech Stack
+
+- **Frontend** — Next.js 15, Tailwind CSS, wagmi, WalletConnect, TanStack Query
+- **Backend** — Express, Node.js, ethers.js v6
+- **Contracts** — Solidity, Foundry
+- **Database** — Supabase (API metadata)
+- **Chain** — Morph L2 (EVM-compatible)
+- **AI** — Groq (llama-3.3-70b) / OpenAI GPT-4o
+
+---
+
+*De-Finitely Broke*
