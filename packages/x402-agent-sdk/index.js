@@ -201,7 +201,7 @@ class X402Agent {
 			temperature = 0.0,
 			verbose = env.VERBOSE !== "false",
 			debug = env.DEBUG === "true",
-			settleDelay = 2000,
+			settleDelay = 3000,
 			onEvent = null,
 			catalogTtl = 0,
 		} = config;
@@ -275,7 +275,9 @@ class X402Agent {
             - Choose the tool that matches the user’s keywords exactly.
             - If no tool matches, say so – but you must look at **all** tools before giving up.
             - Call the chosen tool with an empty object {} if it requires no arguments.
-            - Never invent tools. Never pick a random tool.`;
+            - Never invent tools. Never pick a random tool.
+            - Once a tool returns data, do NOT call it again with the same arguments. Use the data you received to answer.
+            - You may call the same tool with different arguments if the user needs different data (e.g. weather for two cities).`;
 
 		/** @type {Array|null} Cached service catalog. */
 		this.catalog = null;
@@ -706,6 +708,12 @@ class X402Agent {
 		let callCount = 0;
 		// Track tools that have already failed so we don't retry them
 		const failedTools = new Set();
+		// Nonces of successful calls — resolved to txHashes at the very end
+		const pendingTx = [];
+		// Track (tool + args) combos already completed — prevents identical re-calls
+		// but allows the same tool with different args (e.g. weather for two cities)
+		const doneCalls = new Set();
+		const toolCallCount = {};
 
 		for (let loop = 0; loop < this.maxLoops; loop++) {
 			const message = response.choices[0].message;
@@ -754,6 +762,24 @@ class X402Agent {
 					continue;
 				}
 
+				// Skip tools that already succeeded with the same args — data is already in context
+				const argsKey = JSON.stringify(Object.keys(args).sort().reduce((o, k) => { o[k] = args[k]; return o; }, {}));
+				// No-arg tools (e.g. random_joke) get a call index so repeats are allowed
+				const hasArgs = Object.keys(args).length > 0;
+				const callIndex = toolCallCount[name] || 0;
+				const callKey = hasArgs ? name + "|" + argsKey : name + "|#" + callIndex + "|" + argsKey;
+				if (doneCalls.has(callKey)) {
+					toolResults.push({
+						role: "tool",
+						tool_call_id: id,
+						content: JSON.stringify({
+							error: "Already called with identical arguments — data already provided. Use the data you already have to answer.",
+							tool: meta.name,
+						}),
+					});
+					continue;
+				}
+
 				if (this.logger) {
 					this.logger.tree(` `);
 					this.logger.tree(
@@ -781,8 +807,13 @@ class X402Agent {
 						totalSpent += BigInt(meta.pricePerCall);
 						callCount++;
 						successfulCallsThisRound++;
+						// Store nonce so we can resolve txHash at the very end
+						pendingTx.push({ api: meta.name, nonce });
+						// Mark this exact call as done to prevent identical re-calls
+						doneCalls.add(callKey);
+								toolCallCount[name] = (toolCallCount[name] || 0) + 1;
 						if (this.logger)
-							this.logger.tree(`${C.green}[ OK ] Transaction success${C.reset}`, 1);
+							this.logger.tree(`${C.green}[ OK ] Payment sent${C.reset}`, 1);
 						this._emit("tool:result", {
 							name: meta.name,
 							apiId: meta.apiId,
@@ -792,7 +823,12 @@ class X402Agent {
 						toolResults.push({
 							role: "tool",
 							tool_call_id: id,
-							content: JSON.stringify({ data: body.data || body, success: true }),
+							content: JSON.stringify({
+								data: body.data || body,
+								success: true,
+								done: true,
+								instruction: "You have the data. Do NOT call this tool again. Synthesize your final answer now.",
+							}),
 						});
 					} else {
 						if (this.logger)
@@ -911,12 +947,87 @@ class X402Agent {
 				C.yellow
 			);
 			this.logger.info("ACCOUNT STATUS", finalBalanceStr, C.green);
+
+			// Resolve all nonces → txHashes. Spin until every one lands (max 30s).
+			if (pendingTx.length > 0) {
+				this.logger.tree(" ");
+				this.logger.tree(`${C.dim}ON-CHAIN TRANSACTIONS${C.reset}`, 0);
+				const POLL_INTERVAL = 1500;
+				const MAX_WAIT_MS   = 30_000;
+				const startTime     = Date.now();
+
+				const resolved = new Map(); // nonce → { txHash, explorerUrl }
+
+				while (resolved.size < pendingTx.length) {
+					const pending = pendingTx.filter((p) => !resolved.has(p.nonce));
+					this._spinner(
+						`Waiting for ${pending.length} transaction${pending.length > 1 ? "s" : ""} to confirm on-chain...`
+					);
+
+					try {
+						const histRes = await this._fetch(
+							`${this.gateway}/dashboard/${this.agentAddress}/history?limit=50`
+						);
+						if (histRes.ok) {
+							const histData = await histRes.json();
+							for (const p of pending) {
+								const match = (histData.history ?? []).find(
+									(e) => e.nonce?.toLowerCase() === p.nonce?.toLowerCase()
+								);
+								if (match?.txHash) {
+									resolved.set(p.nonce, {
+										api: p.api,
+										txHash: match.txHash,
+										explorerUrl:
+											match.explorerUrl ??
+											`https://explorer-hoodi.morphl2.io/tx/${match.txHash}`,
+									});
+								}
+							}
+						}
+					} catch {
+						// non-fatal
+					}
+
+					if (resolved.size < pendingTx.length && Date.now() - startTime < MAX_WAIT_MS) {
+						await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+					} else {
+						break;
+					}
+				}
+
+				this._spinnerDone("Transactions confirmed");
+
+				for (const p of pendingTx) {
+					const r = resolved.get(p.nonce);
+					if (r) {
+						this.logger.tree(
+							`${C.cyan}${r.api}${C.reset}`,
+							1
+						);
+						this.logger.tree(
+							`${C.dim}TX   ${C.reset}${C.brightWhite}${r.txHash}${C.reset}`,
+							2
+						);
+						this.logger.tree(
+							`${C.dim}URL  ${C.reset}${C.dim}${r.explorerUrl}${C.reset}`,
+							2
+						);
+					} else {
+						this.logger.tree(
+							`${C.yellow}${p.api}${C.reset} ${C.dim}(tx pending — check explorer manually)${C.reset}`,
+							1
+						);
+					}
+				}
+			}
 			this.logger.footer();
 		}
 
 		const finalMetrics = {
 			totalSpent: (Number(totalSpent) / 1_000_000).toFixed(6) + " USDC",
 			callsMade: callCount,
+			transactions: pendingTx,
 		};
 		this._emit("run:complete", { answer: finalText.trim(), metrics: finalMetrics });
 

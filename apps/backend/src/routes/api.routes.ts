@@ -23,6 +23,7 @@
 import { Router, Request, Response } from "express";
 import { requirePayment } from "../middleware/x402.middleware";
 import { blockchainService } from "../services/blockchain.service";
+import { requireInternal } from "../middleware/internal.middleware";
 
 const router = Router();
 
@@ -163,7 +164,7 @@ router.get("/catalog", async (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 export const internalRoutes = Router();
 
-internalRoutes.get("/:key", (req: Request, res: Response) => {
+internalRoutes.get("/:key", requireInternal, async (req: Request, res: Response) => {
 	const key = param(req.params.key);
 
 	switch (key) {
@@ -201,6 +202,51 @@ internalRoutes.get("/:key", (req: Request, res: Response) => {
 				slow: base,
 				timestamp: Date.now(),
 			});
+		}
+
+		case "trivia": {
+			try {
+				const triviaRes = await fetch("https://uselessfacts.jsph.pl/api/v2/facts/random?language=en");
+				if (triviaRes.ok) {
+					const triviaData = await triviaRes.json();
+					return res.json({
+						fact: triviaData.text,
+						source: triviaData.source_url,
+						timestamp: Date.now(),
+					});
+				}
+			} catch (_e) {}
+			return res.json({
+				fact: "Did you know? Honey never spoils.",
+				source: "general knowledge",
+				timestamp: Date.now(),
+			});
+		}
+
+		case "weather": {
+			const city = String(req.query.city || "London");
+			try {
+				const geoRes = await fetch("https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(city) + "&count=1&language=en&format=json");
+				if (!geoRes.ok) throw new Error("geo failed");
+				const geoData = await geoRes.json();
+				const loc = geoData.results && geoData.results[0];
+				if (!loc) return res.status(404).json({ error: "City not found: " + city });
+				const wxRes = await fetch("https://api.open-meteo.com/v1/forecast?latitude=" + loc.latitude + "&longitude=" + loc.longitude + "&current_weather=true&temperature_unit=celsius");
+				if (!wxRes.ok) throw new Error("weather fetch failed");
+				const wxData = await wxRes.json();
+				const cw = wxData.current_weather;
+				return res.json({
+					city: loc.name,
+					country: loc.country_code,
+					temperature_c: cw.temperature,
+					windspeed_kmh: cw.windspeed,
+					weathercode: cw.weathercode,
+					is_day: cw.is_day === 1,
+					timestamp: Date.now(),
+				});
+			} catch (err) {
+				return res.status(502).json({ error: "Weather fetch failed", detail: (err as any).message });
+			}
 		}
 
 		default:
@@ -266,6 +312,8 @@ router.all("/call/:apiId", async (req: Request, res: Response) => {
 					"User-Agent": "AgentMesh-Gateway/1.0.0",
 					"X-AgentMesh-Payer": req.paymentPayload?.payer ?? "",
 					"X-AgentMesh-Nonce": req.paymentPayload?.nonce ?? "",
+
+					"X-Internal-Key": process.env.INTERNAL_API_KEY ?? "",
 				},
 				body: ["POST", "PUT", "PATCH"].includes(req.method)
 					? JSON.stringify(req.body)
