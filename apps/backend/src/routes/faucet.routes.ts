@@ -15,7 +15,7 @@
 
 import { Router, Request, Response } from "express";
 import { ethers } from "ethers";
-import MockUSDC from "../../../../packages/contracts/out/MockUSDC.sol/MockUSDC.json";
+import MockUSDC from "../abis/MockUSDC.json";
 
 const router = Router();
 const param = (v: string | string[]): string => (Array.isArray(v) ? v[0] : v);

@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
-import APIRegistry from "../../../../packages/contracts/out/APIRegistry.sol/APIRegistry.json";
-import X402Facilitator from "../../../../packages/contracts/out/X402Facilitator.sol/X402Facilitator.json";
+import APIRegistry from "../abis/APIRegistry.json";
+import X402Facilitator from "../abis/X402Facilitator.json";
 import { nonceService } from "./nonce.service";
 
 /**

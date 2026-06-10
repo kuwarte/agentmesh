@@ -29,7 +29,27 @@ const BANNER = `
 
 const app = express();
 
-app.use(cors());
+const ALLOWED_ORIGINS = [
+	"https://x402agentmesh.vercel.app",
+	// add preview deploy patterns or localhost for local dev
+	/^http:\/\/localhost:\d+$/,
+];
+
+app.use(
+	cors({
+		origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+			// No origin = server-to-server request (AI agents, curl, etc.) — always allow
+			if (!origin) return callback(null, true);
+			const allowed = ALLOWED_ORIGINS.some((o) =>
+				typeof o === "string" ? o === origin : o.test(origin)
+			);
+			callback(allowed ? null : new Error("Not allowed by CORS"), allowed);
+		},
+		methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+		allowedHeaders: ["Content-Type", "X-Payment", "Authorization"],
+		credentials: true,
+	})
+);
 app.use(express.json());
 
 app.use((req, _res, next) => {
