@@ -270,6 +270,7 @@ pnpm install
 pnpm dev
 
 # production build
+# Note: forge build must be run in packages/contracts first — tsc build copies the ABIs automatically
 pnpm build
 pnpm start
 # → http://localhost:3001
