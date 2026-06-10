@@ -20,6 +20,7 @@ import { Router, Request, Response } from "express";
 import { blockchainService } from "../services/blockchain.service";
 import { ledgerService } from "../services/ledger.service";
 import { metadataService } from "../services/metadata.service";
+import { requireInternal } from "../middleware/internal.middleware";
 import metadataRouter from "./metadata.routes";
 
 const router = Router();
@@ -276,7 +277,7 @@ router.get("/stats", async (_req: Request, res: Response) => {
 //   ABI: packages/contracts/out/APIRegistry.sol/APIRegistry.json
 //   Function: registerAPI(name, endpoint, pricePerCall)
 // ---------------------------------------------------------------------------
-router.post("/register", async (req: Request, res: Response) => {
+router.post("/register", requireInternal, async (req: Request, res: Response) => {
 	try {
 		const { name, endpoint, pricePerCall, providerAddress } = req.body;
 
@@ -348,7 +349,7 @@ router.post("/register", async (req: Request, res: Response) => {
 // Body: { pricePerCall?, active? }
 // Only the registered provider (GATEWAY_PRIVATE_KEY wallet) can update.
 // ---------------------------------------------------------------------------
-router.put("/api/:id", async (req: Request, res: Response) => {
+router.put("/api/:id", requireInternal, async (req: Request, res: Response) => {
 	try {
 		const { pricePerCall, active } = req.body;
 
