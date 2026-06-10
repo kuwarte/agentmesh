@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -11,72 +11,28 @@ import {
 import { useAccount, useConnect } from 'wagmi'
 import ProviderSidebar from '@/components/layout/ProviderSidebar'
 import { morph } from '@/lib/chains'
+import {
+  fetchProviderOverview,
+  fetchProviderEarnings,
+  type ProviderOverview,
+  type ProviderEarnings,
+  type LedgerEntry,
+} from '@/lib/backend'
 import RegisterApiModal from './RegisterApiModal'
 import styles from './Provider.module.css'
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const chartData = [
-  { name: 'Jan', earnings: 400 },
-  { name: 'Feb', earnings: 800 },
-  { name: 'Mar', earnings: 600 },
-  { name: 'Apr', earnings: 1000 },
-  { name: 'May', earnings: 1256.5 },
-]
-
-const ENDPOINTS = [
-  { name: 'BTC/USD Price Feed', price: '$0.0010/call', earned: '+$658.40' },
-  { name: 'ETH/USD Price Feed', price: '$0.0010/call', earned: '+$658.40' },
-  { name: 'Global Weather API', price: '$0.0010/call', earned: '+$124.00' },
-]
-
-const CALL_HISTORY = [
-  {
-    ts: 'May 20 14:57:59',
-    name: 'Web Content Scraper',
-    type: 'API CALL',
-    status: 'Settled',
-    amount: '-$0.0041',
-  },
-  {
-    ts: 'May 20 14:57:59',
-    name: 'Web Content Scraper',
-    type: 'EARNING',
-    status: 'Settled',
-    amount: '+$1.0044',
-  },
-  {
-    ts: 'May 20 14:57:59',
-    name: 'BTC/USD Price Feed',
-    type: 'REGISTRY',
-    status: 'Settled',
-    amount: '-',
-  },
-]
-
-const BREAKDOWN = [
-  { label: 'Crypto / DeFi', val: '$850.50', pct: 75 },
-  { label: 'Finance', val: '$201.00', pct: 40 },
-  { label: 'Web Scraping', val: '$105.00', pct: 20 },
-  { label: 'AI / Compute', val: '$100.00', pct: 15 },
-]
 
 // ─── Connect Modal Component ──────────────────────────────────────────────────
 
 function ConnectModal() {
   const { connect, connectors, error, isPending } = useConnect()
-  
+
   const availableConnector =
     connectors.find((connector) => connector.type === 'injected') ??
     connectors[0]
 
   const handleConnect = () => {
     if (!availableConnector) return
-
-    connect({
-      connector: availableConnector,
-      chainId: morph.id,
-    })
+    connect({ connector: availableConnector, chainId: morph.id })
   }
 
   return (
@@ -95,25 +51,19 @@ function ConnectModal() {
         </p>
 
         <div className={styles.modalList}>
-          <div className={styles.modalListItem}>
-            <span className={styles.listDot} />
-            Register endpoints - permissionless, no approval
-          </div>
-          <div className={styles.modalListItem}>
-            <span className={styles.listDot} />
-            99% of every call routes to your wallet
-          </div>
-          <div className={styles.modalListItem}>
-            <span className={styles.listDot} />
-            Instant USDC settlement via x402 protocol
-          </div>
-          <div className={styles.modalListItem}>
-            <span className={styles.listDot} />
-            Update pricing or deactivate any time
-          </div>
+          {[
+            'Register endpoints - permissionless, no approval',
+            '99% of every call routes to your wallet',
+            'Instant USDC settlement via x402 protocol',
+            'Update pricing or deactivate any time',
+          ].map((item) => (
+            <div key={item} className={styles.modalListItem}>
+              <span className={styles.listDot} />
+              {item}
+            </div>
+          ))}
         </div>
 
-        {/* Unified, single option wallet execution button */}
         <button
           className={styles.modalConnectBtn}
           onClick={handleConnect}
@@ -136,9 +86,59 @@ function Dashboard() {
   const [breakdownPeriod, setBreakdownPeriod] = useState('ALL')
   const [registerOpen, setRegisterOpen] = useState(false)
 
+  const [overview, setOverview] = useState<ProviderOverview | null>(null)
+  const [earnings, setEarnings] = useState<ProviderEarnings | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!address) return
+
+    let cancelled = false
+
+    const load = (initial: boolean) => {
+      if (initial) setLoading(true)
+      Promise.all([
+        fetchProviderOverview(address),
+        fetchProviderEarnings(address),
+      ])
+        .then(([ov, ea]) => {
+          if (cancelled) return
+          setOverview(ov)
+          setEarnings(ea)
+        })
+        .catch(console.error)
+        .finally(() => { if (!cancelled && initial) setLoading(false) })
+    }
+
+    load(true)
+    const interval = setInterval(() => load(false), 15_000)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [address])
+
   const shortAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
-    : '0x4F3A...839B'
+    : '—'
+
+  const provider = overview?.provider
+  const apis = overview?.apis ?? []
+  const recentCalls: LedgerEntry[] = overview?.recentCalls ?? []
+  const breakdown = earnings?.breakdown ?? []
+
+  // Build chart data from earnings breakdown (one point per API)
+  const chartData = breakdown.map((b) => ({
+    name: b.apiName.length > 12 ? b.apiName.slice(0, 12) + '…' : b.apiName,
+    earnings: parseFloat(b.earningsUsd),
+  }))
+
+  const formatUsd = (val: string | number | undefined) => {
+    if (val === undefined || val === null) return '0.00'
+    const n = typeof val === 'string' ? parseFloat(val) : val
+    return isNaN(n) ? '0.00' : n.toFixed(2)
+  }
 
   return (
     <main className={styles.content}>
@@ -166,27 +166,36 @@ function Dashboard() {
       <div className={styles.balanceCard}>
         <span className={styles.balanceLabel}>USDC Balance</span>
         <div className={styles.balanceValue}>
-          4,284.41 <span className={styles.balanceCurrency}>USDC</span>
+          {loading ? '—' : formatUsd(provider?.usdcBalance)}{' '}
+          <span className={styles.balanceCurrency}>USDC</span>
         </div>
-        <div className={styles.balanceTrend}>+0.0203 USDC</div>
+        <div className={styles.balanceTrend}>
+          {loading ? '' : `+${formatUsd(provider?.totalEarningsUsd)} USDC total earned`}
+        </div>
       </div>
 
       {/* Stats Row */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
           <span className={styles.statLabel}>Total API calls</span>
-          <div className={styles.statValue}>1.2M</div>
-          <span className={styles.badge}>2.8K today</span>
+          <div className={styles.statValue}>
+            {loading ? '—' : (provider?.totalCalls ?? 0).toLocaleString()}
+          </div>
+          <span className={styles.badge}>as provider</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statLabel}>Transactions</span>
-          <div className={styles.statValue}>1.3K</div>
-          <span className={styles.statSubtext}>1.3K settled on-chain</span>
+          <span className={styles.statLabel}>Total Earned</span>
+          <div className={styles.statValue}>
+            ${loading ? '—' : formatUsd(provider?.totalEarningsUsd)}
+          </div>
+          <span className={styles.statSubtext}>99% of each call</span>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statLabel}>APIs Registered</span>
-          <div className={styles.statValue}>6</div>
-          <span className={styles.badge}>+1 this week</span>
+          <div className={styles.statValue}>
+            {loading ? '—' : provider?.totalApis ?? 0}
+          </div>
+          <span className={styles.badge}>{loading ? '' : `${provider?.activeApis ?? 0} active`}</span>
         </div>
       </div>
 
@@ -197,7 +206,9 @@ function Dashboard() {
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartSub}>Total Earnings</span>
-              <div className={styles.chartVal}>$1,256.50</div>
+              <div className={styles.chartVal}>
+                ${loading ? '—' : formatUsd(provider?.totalEarningsUsd)}
+              </div>
             </div>
           </div>
 
@@ -232,21 +243,30 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Right Active Endpoints Checklist */}
+        {/* Right Active Endpoints */}
         <div className={styles.endpointsCard}>
           <h3 className={styles.sectionTitle}>
-            My Endpoints <span className={styles.titleBadge}>3</span>
+            My Endpoints <span className={styles.titleBadge}>{apis.length}</span>
           </h3>
           <div className={styles.endpointsList}>
-            {ENDPOINTS.map((ep) => (
-              <div key={ep.name} className={styles.endpointRow}>
-                <div>
-                  <div className={styles.endpointName}>{ep.name}</div>
-                  <div className={styles.endpointPrice}>{ep.price}</div>
+            {loading && <p style={{ opacity: 0.4, fontSize: '0.85rem' }}>Loading…</p>}
+            {!loading && apis.length === 0 && (
+              <p style={{ opacity: 0.4, fontSize: '0.85rem' }}>No APIs registered yet.</p>
+            )}
+            {apis.map((api) => {
+              const earned = breakdown.find((b) => b.apiName === api.name)
+              return (
+                <div key={api.apiId} className={styles.endpointRow}>
+                  <div>
+                    <div className={styles.endpointName}>{api.name}</div>
+                    <div className={styles.endpointPrice}>${api.priceUsd}/call</div>
+                  </div>
+                  <div className={styles.endpointEarned}>
+                    {earned ? `+$${parseFloat(earned.earningsUsd).toFixed(4)}` : '$0.00'}
+                  </div>
                 </div>
-                <div className={styles.endpointEarned}>{ep.earned}</div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
@@ -266,27 +286,48 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {CALL_HISTORY.map((row, idx) => (
+              {loading && (
+                <tr>
+                  <td colSpan={5} style={{ opacity: 0.4 }}>Loading…</td>
+                </tr>
+              )}
+              {!loading && recentCalls.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ opacity: 0.4 }}>No calls yet.</td>
+                </tr>
+              )}
+              {recentCalls.map((row, idx) => (
                 <tr key={idx}>
-                  <td>{row.ts}</td>
-                  <td>{row.name}</td>
+                  <td>{new Date(row.timestamp).toLocaleString()}</td>
+                  <td>{row.apiName}</td>
                   <td>
                     <span className={`${styles.badge} ${styles.typeBadge}`}>
-                      {row.type}
+                      EARNING
                     </span>
                   </td>
-                  <td style={{ color: 'var(--color-accent)' }}>{row.status}</td>
-                  <td className="text-mono">{row.amount}</td>
+                  <td style={{ color: 'var(--color-accent)' }}>
+                    {row.explorerUrl ? (
+                      <a
+                        href={row.explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}
+                      >
+                        Settled ↗
+                      </a>
+                    ) : 'Settled'}
+                  </td>
+                  <td className="text-mono">+${parseFloat(row.amountUsd).toFixed(6)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* Sector Yield Breakdown Progress Stack */}
+        {/* Earnings by API Breakdown */}
         <div className={styles.breakdownCard}>
           <div className={styles.breakdownTop}>
-            <h3 className={styles.sectionTitle}>Earnings by Sector</h3>
+            <h3 className={styles.sectionTitle}>Earnings by API</h3>
             <div className={styles.toggleGroup}>
               {['ALL', '1M', '1W'].map((period) => (
                 <button
@@ -300,21 +341,31 @@ function Dashboard() {
             </div>
           </div>
 
-          {BREAKDOWN.map((item) => (
-            <div key={item.label} className={styles.breakdownRow}>
-              <div className={styles.breakdownLabelRow}>
-                <span>{item.label}</span>
-                <span>{item.val}</span>
+          {loading && <p style={{ opacity: 0.4, fontSize: '0.85rem' }}>Loading…</p>}
+          {!loading && breakdown.length === 0 && (
+            <p style={{ opacity: 0.4, fontSize: '0.85rem' }}>No earnings data yet.</p>
+          )}
+          {breakdown.map((item) => {
+            const total = parseFloat(earnings?.totalEarningsUsd ?? '0') || 1
+            const pct = Math.round((parseFloat(item.earningsUsd) / total) * 100)
+            return (
+              <div key={item.apiName} className={styles.breakdownRow}>
+                <div className={styles.breakdownLabelRow}>
+                  <span>{item.apiName}</span>
+                  <span>${parseFloat(item.earningsUsd).toFixed(4)}</span>
+                </div>
+                <div className={styles.progressTrack}>
+                  <div className={styles.progressFill} style={{ width: `${pct}%` }} />
+                </div>
               </div>
-              <div className={styles.progressTrack}>
-                <div className={styles.progressFill} style={{ width: `${item.pct}%` }} />
-              </div>
-            </div>
-          ))}
+            )
+          })}
 
           <div className={styles.breakdownTotal}>
-            <span>Total Spend</span>
-            <span className={styles.totalVal}>$1,256.50</span>
+            <span>Total Earned</span>
+            <span className={styles.totalVal}>
+              ${loading ? '—' : formatUsd(earnings?.totalEarningsUsd)}
+            </span>
           </div>
         </div>
       </div>

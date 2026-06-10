@@ -1,8 +1,8 @@
 import { defineChain } from 'viem'
 
 export const morph = defineChain({
-  id: 2818,
-  name: 'Morph',
+  id: 2910,
+  name: 'Morph Hoodi',
   nativeCurrency: {
     name: 'Ether',
     symbol: 'ETH',
@@ -10,13 +10,14 @@ export const morph = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ['https://rpc.morphl2.io'],
+      http: ['https://rpc-hoodi.morphl2.io'],
     },
   },
   blockExplorers: {
     default: {
-      name: 'MorphScan',
-      url: 'https://explorer.morphl2.io',
+      name: 'Morph Hoodi Explorer',
+      url: 'https://explorer-hoodi.morphl2.io',
     },
   },
+  testnet: true,
 })

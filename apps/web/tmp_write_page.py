@@ -1,13 +1,13 @@
-﻿"use client";
+content = '''"use client";
 
 import AppSidebar from "@/components/layout/AppSidebar";
 import { fetchApiBySlug } from "@/lib/backend";
 import { morph } from "@/lib/chains";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { useAccount, useConnect, useConnections, useSignMessage, useReadContract } from "wagmi";
-import { encodePacked, keccak256, toHex } from "viem";
+import { useEffect, useMemo, useState } from "react";
+import { useAccount, useConnect, useConnections, useSignMessage } from "wagmi";
+import { encodePacked, keccak256 } from "viem";
 import styles from "./apiDetail.module.css";
 
 type Tab = "docs" | "playground" | "recent";
@@ -24,7 +24,6 @@ type CallRecord = {
   response: unknown;
 };
 
-// Shape returned by /registry/slug/:slug or /registry/api/:id
 type LiveApi = {
   apiId: string;
   provider: string;
@@ -55,15 +54,10 @@ type PaymentChallenge = {
 };
 
 const BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-const STORAGE_KEY = "agentmesh:recentCalls";
-
-// ─── x402 payment helpers ─────────────────────────────────────────────────────
 
 async function fetchPaymentChallenge(apiId: string): Promise<PaymentChallenge> {
   const res = await fetch(`${BASE}/api/v1/call/${apiId}`, { cache: "no-store" });
-  if (res.status !== 402) {
-    throw new Error(`Expected 402, got ${res.status}`);
-  }
+  if (res.status !== 402) throw new Error(`Expected 402, got ${res.status}`);
   const body = await res.json();
   return body.payment as PaymentChallenge;
 }
@@ -76,12 +70,11 @@ async function fetchNonce(): Promise<{ nonce: string; deadline: number }> {
 
 async function callWithPayment(
   apiId: string,
-  requestUrl: string,
-  header: string
+  xPayment: string
 ): Promise<{ status: number; body: unknown; latencyMs: number }> {
   const t0 = Date.now();
   const res = await fetch(`${BASE}/api/v1/call/${apiId}`, {
-    headers: { "X-Payment": header },
+    headers: { "X-Payment": xPayment },
     cache: "no-store",
   });
   const latencyMs = Date.now() - t0;
@@ -110,78 +103,21 @@ export default function ApiDetailPage() {
   const [tab, setTab] = useState<Tab>("docs");
   const [copied, setCopied] = useState(false);
   const [playgroundParams, setPlaygroundParams] = useState<PlaygroundParams>({});
-
-  // Live call state
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const [callResult, setCallResult] = useState<unknown>(null);
   const [callStartedAt, setCallStartedAt] = useState<string | null>(null);
-
-  // Persist recent calls in localStorage so they survive navigation + reloads
-  const [recentCalls, setRecentCallsState] = useState<CallRecord[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? (JSON.parse(stored) as CallRecord[]) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const setRecentCalls = useCallback(
-    (updater: CallRecord[] | ((prev: CallRecord[]) => CallRecord[])) => {
-      setRecentCallsState((prev) => {
-        const next = typeof updater === "function" ? updater(prev) : updater;
-        const trimmed = next.slice(0, 50);
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed)); } catch { /* quota */ }
-        return trimmed;
-      });
-    },
-    []
-  );
-
-  // Pending sign state — we need to trigger signing and wait for it
-  const [pendingSign, setPendingSign] = useState<{
-    message: `0x${string}`;
-    challenge: PaymentChallenge;
-    nonce: string;
-    deadline: number;
-  } | null>(null);
+  const [recentCalls, setRecentCalls] = useState<CallRecord[]>([]);
 
   const { address, isConnected } = useAccount();
   const { connect, connectors, error: connectError, isPending } = useConnect();
   const connections = useConnections();
   const { signMessageAsync } = useSignMessage();
 
-  // ── USDC approval check ──────────────────────────────────────────────────
-  const [gatewayConfig, setGatewayConfig] = useState<{ usdc: string; facilitator: string } | null>(null);
-  useEffect(() => {
-    fetch(`${BASE}/config`)
-      .then((r) => r.json())
-      .then((d) => setGatewayConfig({ usdc: d.contracts?.usdc, facilitator: d.contracts?.facilitator }))
-      .catch(() => {});
-  }, []);
-  const MIN_ALLOWANCE = BigInt("1000000000000");
-  const { data: allowance } = useReadContract({
-    address: gatewayConfig?.usdc as `0x${string}` | undefined,
-    abi: [{
-      type: "function", name: "allowance",
-      inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }],
-      outputs: [{ name: "", type: "uint256" }],
-      stateMutability: "view",
-    }] as const,
-    functionName: "allowance",
-    args: address && gatewayConfig?.facilitator ? [address, gatewayConfig.facilitator as `0x${string}`] : undefined,
-    query: { enabled: !!address && !!gatewayConfig },
-  });
-  const isApproved = allowance !== undefined && (allowance as bigint) >= MIN_ALLOWANCE;
-
-  const connector =
-    connectors.find((c) => c.type === "injected") ?? connectors[0];
+  const connector = connectors.find((c) => c.type === "injected") ?? connectors[0];
   const connectedAddress = address ?? connections[0]?.accounts[0] ?? undefined;
   const hasWalletConnection = isConnected || connections.length > 0;
-  const visibleConnectError =
-    connectError?.message.includes("already connected") ? null : connectError;
+  const visibleConnectError = connectError?.message.includes("already connected") ? null : connectError;
 
   const callUrl = api ? `${BASE}/api/v1/call/${api.apiId}` : "";
 
@@ -200,7 +136,7 @@ export default function ApiDetailPage() {
     setPlaygroundParams({});
     setCallResult(null);
     setCallStartedAt(null);
-    // Note: recentCalls intentionally NOT cleared here — persisted across APIs
+    setRecentCalls([]);
     setRunError(null);
   }, [api]);
 
@@ -220,7 +156,6 @@ export default function ApiDetailPage() {
     setPlaygroundParams((cur) => ({ ...cur, [name]: value }));
   };
 
-  // ── Live x402 call ──────────────────────────────────────────────────────────
   const runLiveRequest = async () => {
     if (!api || !connectedAddress) return;
     setIsRunning(true);
@@ -229,13 +164,9 @@ export default function ApiDetailPage() {
     const startedAt = new Date();
 
     try {
-      // 1. Get payment challenge (402)
       const challenge = await fetchPaymentChallenge(api.apiId);
-
-      // 2. Get a fresh nonce + deadline
       const { nonce, deadline } = await fetchNonce();
 
-      // 3. Build the sign message: keccak256(abi.encodePacked(...))
       const msgHash = keccak256(
         encodePacked(
           ["address", "address", "address", "uint256", "bytes32", "uint256"],
@@ -250,26 +181,20 @@ export default function ApiDetailPage() {
         )
       );
 
-      // 4. Sign the hash
       const signature = await signMessageAsync({ message: { raw: msgHash } });
 
-      // 5. Build the X-Payment header
-      const paymentObj = {
-        payer: connectedAddress,
-        provider: challenge.provider,
-        amount: challenge.amount,
-        nonce,
-        deadline,
-        signature,
-      };
-      const xPayment = btoa(JSON.stringify(paymentObj));
-
-      // 6. Call the API with payment header
-      const { status, body, latencyMs } = await callWithPayment(
-        api.apiId,
-        requestUrl,
-        xPayment
+      const xPayment = btoa(
+        JSON.stringify({
+          payer: connectedAddress,
+          provider: challenge.provider,
+          amount: challenge.amount,
+          nonce,
+          deadline,
+          signature,
+        })
       );
+
+      const { status, body, latencyMs } = await callWithPayment(api.apiId, xPayment);
 
       const response = {
         status,
@@ -284,7 +209,6 @@ export default function ApiDetailPage() {
 
       setCallResult(response);
       setCallStartedAt(startedAt.toLocaleTimeString());
-
       setRecentCalls((prev) => [
         {
           id: `${api.apiId}-${startedAt.getTime()}`,
@@ -298,19 +222,16 @@ export default function ApiDetailPage() {
         },
         ...prev,
       ]);
-
       setTab("recent");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      // User rejected signature — surface cleanly
-      if (message.toLowerCase().includes("user rejected") || message.toLowerCase().includes("denied")) {
-        setRunError("Signature rejected. Approve the signing request in your wallet to continue.");
-      } else {
-        setRunError(message);
-      }
+      const msg = err instanceof Error ? err.message : String(err);
+      setRunError(
+        msg.toLowerCase().includes("user rejected") || msg.toLowerCase().includes("denied")
+          ? "Signature rejected. Approve the signing request in your wallet to continue."
+          : msg
+      );
     } finally {
       setIsRunning(false);
-      setPendingSign(null);
     }
   };
 
@@ -320,20 +241,19 @@ export default function ApiDetailPage() {
     setTab("playground");
   };
 
-  // Price display helper
   const displayPrice =
     api?.priceUsd && api.priceUsd !== ""
       ? api.priceUsd
       : api?.pricePerCall
       ? (parseInt(api.pricePerCall) / 1_000_000).toFixed(6)
-      : "–";
+      : "0.000000";
 
   if (loading) {
     return (
       <div className={styles.shell}>
         <AppSidebar />
         <div className={styles.body} style={{ display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.5 }}>
-          Loading…
+          Loading\u2026
         </div>
       </div>
     );
@@ -358,16 +278,11 @@ export default function ApiDetailPage() {
   return (
     <div className={styles.shell}>
       <AppSidebar />
-
       <div className={styles.body}>
         <nav className={styles.breadcrumb} aria-label="Breadcrumb">
-          <Link href="/marketplace" className={styles.breadcrumbLink}>
-            Marketplace
-          </Link>
+          <Link href="/marketplace" className={styles.breadcrumbLink}>Marketplace</Link>
           <span className={styles.breadcrumbSep} aria-hidden="true">/</span>
-          <span className={styles.breadcrumbLink} style={{ opacity: 0.5 }}>
-            {api.category}
-          </span>
+          <span className={styles.breadcrumbLink} style={{ opacity: 0.5 }}>{api.category}</span>
           <span className={styles.breadcrumbSep} aria-hidden="true">/</span>
           <span className={styles.breadcrumbCurrent}>{api.name}</span>
         </nav>
@@ -384,9 +299,7 @@ export default function ApiDetailPage() {
             <p className={styles.desc}>{api.longDesc ?? api.description}</p>
 
             <div className={styles.statsBar}>
-              <span className={styles.stat}>
-                settlement: <strong>Morph L2</strong>
-              </span>
+              <span className={styles.stat}>settlement: <strong>Morph L2</strong></span>
               {!api.active && (
                 <span className={styles.stat} style={{ color: "#f87171" }}>
                   status: <strong style={{ color: "#f87171" }}>inactive</strong>
@@ -397,26 +310,21 @@ export default function ApiDetailPage() {
             <div className={styles.divider} />
 
             <div className={styles.tabs} role="tablist">
-              {(["docs", "playground", "recent"] as Tab[]).map((currentTab) => (
+              {(["docs", "playground", "recent"] as Tab[]).map((t) => (
                 <button
-                  key={currentTab}
+                  key={t}
                   role="tab"
-                  aria-selected={tab === currentTab}
-                  className={`${styles.tab} ${tab === currentTab ? styles.tabActive : ""}`}
-                  onClick={() => setTab(currentTab)}
+                  aria-selected={tab === t}
+                  className={`${styles.tab} ${tab === t ? styles.tabActive : ""}`}
+                  onClick={() => setTab(t)}
                 >
-                  {currentTab === "docs" && <span className={styles.tabIcon}>[]</span>}
-                  {currentTab === "playground" && <span className={styles.tabIcon}>&gt;</span>}
-                  {currentTab === "docs"
-                    ? "Docs"
-                    : currentTab === "playground"
-                    ? "Playground"
-                    : "Recent Calls"}
+                  {t === "docs" && <span className={styles.tabIcon}>[]</span>}
+                  {t === "playground" && <span className={styles.tabIcon}>&gt;</span>}
+                  {t === "docs" ? "Docs" : t === "playground" ? "Playground" : "Recent Calls"}
                 </button>
               ))}
             </div>
 
-            {/* ── DOCS TAB ──────────────────────────────────────────────────── */}
             {tab === "docs" && (
               <div className={styles.docsContent}>
                 <section className={styles.section}>
@@ -425,36 +333,24 @@ export default function ApiDetailPage() {
                     <div className={styles.endpointRow}>
                       <span className={styles.methodBadge}>GET</span>
                       <code className={styles.endpointUrl}>{callUrl}</code>
-                      <button className={styles.copyBtn} onClick={copy}>
-                        {copied ? "COPIED" : "COPY"}
-                      </button>
+                      <button className={styles.copyBtn} onClick={copy}>{copied ? "COPIED" : "COPY"}</button>
                     </div>
-
                     <div className={styles.tableWrap}>
                       <table className={styles.table}>
                         <thead>
-                          <tr>
-                            <th>Parameter</th>
-                            <th>Type</th>
-                            <th>Required</th>
-                            <th>Description</th>
-                          </tr>
+                          <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
                         </thead>
                         <tbody>
-                          {(api.params ?? []).map((param) => (
-                            <tr key={param.name}>
-                              <td><code className={styles.paramName}>{param.name}</code></td>
-                              <td><span className={styles.typeTag}>{param.type}</span></td>
-                              <td className={styles.requiredCell}>{param.required}</td>
-                              <td className={styles.descCell}>{param.description}</td>
+                          {(api.params ?? []).map((p) => (
+                            <tr key={p.name}>
+                              <td><code className={styles.paramName}>{p.name}</code></td>
+                              <td><span className={styles.typeTag}>{p.type}</span></td>
+                              <td className={styles.requiredCell}>{p.required}</td>
+                              <td className={styles.descCell}>{p.description}</td>
                             </tr>
                           ))}
                           {(api.params ?? []).length === 0 && (
-                            <tr>
-                              <td colSpan={4} className={styles.descCell} style={{ opacity: 0.5 }}>
-                                No parameters
-                              </td>
-                            </tr>
+                            <tr><td colSpan={4} className={styles.descCell} style={{ opacity: 0.5 }}>No parameters</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -468,11 +364,7 @@ export default function ApiDetailPage() {
                     <div className={styles.tableWrap}>
                       <table className={styles.table}>
                         <thead>
-                          <tr>
-                            <th>Property</th>
-                            <th>Value</th>
-                            <th>Description</th>
-                          </tr>
+                          <tr><th>Property</th><th>Value</th><th>Description</th></tr>
                         </thead>
                         <tbody>
                           <tr>
@@ -508,37 +400,31 @@ export default function ApiDetailPage() {
                 {api.codeExample && (
                   <section className={styles.section}>
                     <h2 className={styles.sectionTitle}>Example - Agent Integration</h2>
-                    <pre className={styles.codeBlock}>
-                      <code>{api.codeExample}</code>
-                    </pre>
+                    <pre className={styles.codeBlock}><code>{api.codeExample}</code></pre>
                   </section>
                 )}
 
                 {api.responseSchema && (
                   <section className={styles.section}>
                     <h2 className={styles.sectionTitle}>Response Schema</h2>
-                    <pre className={styles.codeBlock}>
-                      <code>{api.responseSchema}</code>
-                    </pre>
+                    <pre className={styles.codeBlock}><code>{api.responseSchema}</code></pre>
                   </section>
                 )}
               </div>
             )}
 
-            {/* ── PLAYGROUND TAB ────────────────────────────────────────────── */}
-            {tab === "playground" &&
-              (hasWalletConnection ? (
+            {tab === "playground" && (
+              hasWalletConnection ? (
                 <div className={styles.playgroundPanel}>
                   <div className={styles.playgroundHeader}>
                     <div>
                       <h2 className={styles.sectionTitle}>Live API Playground</h2>
                       <p className={styles.playgroundIntro}>
                         {api.active
-                          ? "Make a real x402 payment and call this API. Your wallet will prompt you to sign the payment."
+                          ? "Makes a real x402 payment. Your wallet will prompt you to sign \u2014 no token approval needed."
                           : "This API is currently inactive and cannot be called."}
                       </p>
                     </div>
-
                     <div className={styles.walletPill}>
                       <span className={styles.walletDot} />
                       {connectedAddress
@@ -547,29 +433,16 @@ export default function ApiDetailPage() {
                     </div>
                   </div>
 
-                  {!isApproved && gatewayConfig ? (
-                    <div className={styles.emptyState}>
-                      <p className={styles.emptyTitle}>USDC approval required</p>
-                      <p className={styles.emptySubtitle}>
-                        You need to approve the X402 Facilitator to spend USDC before making API calls.
-                      </p>
-                      <Link href="/provider/settings" className={styles.connectBtn}>
-                        Go to Settings → Approve
-                      </Link>
-                    </div>
-                  ) : (
                   <div className={styles.playgroundGrid}>
-                    {/* Left: params + run */}
                     <section className={styles.playgroundCard}>
                       <h3 className={styles.playgroundCardTitle}>Parameters</h3>
-
                       <div className={styles.paramForm}>
                         {(api.params ?? []).map((param) => (
                           <label key={param.name} className={styles.paramField}>
                             <span className={styles.paramLabelRow}>
                               <span>{param.name}</span>
                               <span className={styles.paramMeta}>
-                                {param.type} – {param.required === "Yes" ? "required" : "optional"}
+                                {param.type} \u2013 {param.required === "Yes" ? "required" : "optional"}
                               </span>
                             </span>
                             {param.type === "boolean" ? (
@@ -613,17 +486,14 @@ export default function ApiDetailPage() {
                         disabled={isRunning || !api.active}
                         title={!api.active ? "This API is inactive" : undefined}
                       >
-                        {isRunning ? "Waiting for signature…" : api.active ? "Run API Call" : "API Inactive"}
+                        {isRunning ? "Waiting for signature\u2026" : api.active ? "Run API Call" : "API Inactive"}
                       </button>
                     </section>
 
-                    {/* Right: request preview + response */}
                     <section className={styles.playgroundCard}>
                       <h3 className={styles.playgroundCardTitle}>Request</h3>
                       <pre className={styles.playgroundCode}>
-                        <code>{`GET ${requestUrl}
-X-Payment: <signed x402 payload>
-— wallet signs keccak256(facilitator, payer, provider, amount, nonce, deadline)`}</code>
+                        <code>{`GET ${requestUrl}\\nX-Payment: <signed x402 payload>\\n// wallet signs: keccak256(facilitator, payer, provider, amount, nonce, deadline)`}</code>
                       </pre>
 
                       <h3 className={styles.playgroundCardTitle}>Response</h3>
@@ -632,19 +502,18 @@ X-Payment: <signed x402 payload>
                           {callResult
                             ? JSON.stringify(callResult, null, 2)
                             : isRunning
-                            ? "// Signing and calling…"
+                            ? "// Signing and calling\u2026"
                             : "// Response will appear here after a live call."}
                         </code>
                       </pre>
 
                       {callStartedAt && (
                         <p className={styles.mockStatus}>
-                          Call at {callStartedAt} — settled on Morph L2
+                          Call at {callStartedAt} \u2014 settled on Morph L2
                         </p>
                       )}
                     </section>
                   </div>
-                  )}
                 </div>
               ) : (
                 <div className={styles.emptyState}>
@@ -664,26 +533,16 @@ X-Payment: <signed x402 payload>
                     <p className={styles.connectError}>{visibleConnectError.message}</p>
                   )}
                 </div>
-              ))}
+              )
+            )}
 
-            {/* ── RECENT CALLS TAB ──────────────────────────────────────────── */}
-            {tab === "recent" &&
-              (recentCalls.length > 0 ? (
+            {tab === "recent" && (
+              recentCalls.length > 0 ? (
                 <div className={styles.recentPanel}>
                   <div className={styles.recentHeader}>
                     <h2 className={styles.sectionTitle}>Recent Calls</h2>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span className={styles.recentCount}>{recentCalls.length} saved</span>
-                      <button
-                        className={styles.viewResponseBtn}
-                        onClick={() => setRecentCalls([])}
-                        style={{ fontSize: "0.68rem" }}
-                      >
-                        Clear
-                      </button>
-                    </div>
+                    <span className={styles.recentCount}>{recentCalls.length} this session</span>
                   </div>
-
                   <div className={styles.recentList}>
                     {recentCalls.map((call) => (
                       <article key={call.id} className={styles.recentCall}>
@@ -694,17 +553,12 @@ X-Payment: <signed x402 payload>
                             <p>{call.endpoint}</p>
                           </div>
                         </div>
-
                         <div className={styles.recentCallMeta}>
                           <span>{call.amount}</span>
                           <span>{call.latencyMs}ms</span>
                           <span>{call.createdAt}</span>
                         </div>
-
-                        <button
-                          className={styles.viewResponseBtn}
-                          onClick={() => showCallResponse(call)}
-                        >
+                        <button className={styles.viewResponseBtn} onClick={() => showCallResponse(call)}>
                           View Response
                         </button>
                       </article>
@@ -715,14 +569,12 @@ X-Payment: <signed x402 payload>
                 <div className={styles.emptyState}>
                   <span className={styles.emptyIcon}>()</span>
                   <p className={styles.emptyTitle}>No recent calls</p>
-                  <p className={styles.emptySubtitle}>
-                    Run an API call and it will appear here automatically.
-                  </p>
+                  <p className={styles.emptySubtitle}>Run an API call and it will appear here automatically.</p>
                 </div>
-              ))}
+              )
+            )}
           </main>
 
-          {/* ── PRICE CARD ────────────────────────────────────────────────── */}
           <aside className={styles.priceCardWrap}>
             <div className={styles.priceCard}>
               <div className={styles.priceRow}>
@@ -731,34 +583,32 @@ X-Payment: <signed x402 payload>
                   <span className={styles.priceUnit}>USDC/CALL</span>
                 </div>
               </div>
-
               <ul className={styles.featureList}>
                 {[
                   "No account or API key required",
                   "Wallet balance funds calls directly",
                   "Sub-1s settlement on Morph L2",
                   "99% revenue to provider",
-                ].map((feature) => (
-                  <li key={feature} className={styles.featureItem}>
+                ].map((f) => (
+                  <li key={f} className={styles.featureItem}>
                     <span className={styles.featureCheck} aria-hidden="true" />
-                    {feature}
+                    {f}
                   </li>
                 ))}
               </ul>
-
-              <button
-                className={styles.playgroundBtn}
-                onClick={() => setTab("playground")}
-              >
+              <button className={styles.playgroundBtn} onClick={() => setTab("playground")}>
                 TRY IN PLAYGROUND
               </button>
             </div>
           </aside>
         </div>
       </div>
-
-      {/* hidden state used by sign flow */}
-      {pendingSign && <span style={{ display: "none" }} />}
     </div>
   );
 }
+'''
+
+dest = '/home/kuwarte/x402agentic-payment/agentmesh/apps/web/app/marketplace/[apiId]/page.tsx'
+with open(dest, 'w') as f:
+    f.write(content)
+print("done")
