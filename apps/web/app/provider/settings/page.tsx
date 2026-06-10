@@ -135,7 +135,7 @@ function ApprovalPanel() {
     if (allowanceLoading) return 'Checking…'
     if (allowance === undefined) return '—'
     const a = allowance as bigint
-    if (a >= MAX_UINT256 / 2n) return 'Unlimited'
+    if (a >= MAX_UINT256 / BigInt(2)) return 'Unlimited'
     return `${(Number(a) / 1_000_000).toFixed(2)} USDC`
   }
 
