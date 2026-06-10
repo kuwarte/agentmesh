@@ -257,12 +257,33 @@
   background: linear-gradient(
     to bottom,
     var(--color-bg-base)        0%,
-    rgba(8, 12, 10, 0.88)       35%,
-    rgba(8, 12, 10, 0.40)       65%,
+    color-mix(in srgb, var(--color-bg-base) 88%, transparent) 35%,
+    color-mix(in srgb, var(--color-bg-base) 40%, transparent) 65%,
     transparent                 100%
   );
   z-index: 2;
   pointer-events: none;
+}
+
+:global([data-theme="light"]) .beam {
+  --base-opacity: calc(0.012 + var(--center-dist, 0) * 0.08);
+  --final-opacity: calc(var(--base-opacity) + var(--scroll-boost, 0) * 0.22);
+  background: linear-gradient(
+    to top,
+    rgba(0, 138, 69, calc(var(--final-opacity) * 1.0)) 0%,
+    rgba(0, 138, 69, calc(var(--final-opacity) * 0.42)) 30%,
+    rgba(0, 99, 50, calc(var(--final-opacity) * 0.12)) 62%,
+    transparent 100%
+  );
+}
+
+:global([data-theme="light"]) .beamGlow {
+  background: radial-gradient(
+    ellipse 55% 100% at 50% 100%,
+    rgba(0, 138, 69, 0.08) 0%,
+    rgba(0, 138, 69, 0.03) 45%,
+    transparent 80%
+  );
 }
 
 /* ── Responsive ─────────────────────────────────────── */

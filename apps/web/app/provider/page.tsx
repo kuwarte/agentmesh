@@ -11,6 +11,7 @@ import {
 import { useAccount, useConnect } from 'wagmi'
 import ProviderSidebar from '@/components/layout/ProviderSidebar'
 import { morph } from '@/lib/chains'
+import RegisterApiModal from './RegisterApiModal'
 import styles from './Provider.module.css'
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -133,6 +134,7 @@ function ConnectModal() {
 function Dashboard() {
   const { address } = useAccount()
   const [breakdownPeriod, setBreakdownPeriod] = useState('ALL')
+  const [registerOpen, setRegisterOpen] = useState(false)
 
   const shortAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -152,7 +154,12 @@ function Dashboard() {
             </svg>
           </div>
         </div>
-        <button className={styles.registerBtn}>REGISTER AN API</button>
+        <button
+          className={styles.registerBtn}
+          onClick={() => setRegisterOpen(true)}
+        >
+          REGISTER AN API
+        </button>
       </div>
 
       {/* Balance Card */}
@@ -311,6 +318,11 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      <RegisterApiModal
+        open={registerOpen}
+        onClose={() => setRegisterOpen(false)}
+      />
     </main>
   )
 }

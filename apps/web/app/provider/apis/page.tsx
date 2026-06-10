@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import ProviderSidebar from '@/components/layout/ProviderSidebar'
+import RegisterApiModal from '../RegisterApiModal'
 import styles from '../Provider.module.css'
 
 const providerApis = [
@@ -39,6 +41,8 @@ const providerApis = [
 ]
 
 export default function ProviderApisPage() {
+  const [registerOpen, setRegisterOpen] = useState(false)
+
   return (
     <div className={styles.layout}>
       <ProviderSidebar />
@@ -52,7 +56,12 @@ export default function ProviderApisPage() {
               listed under your provider wallet.
             </p>
           </div>
-          <button className={styles.registerBtn}>REGISTER AN API</button>
+          <button
+            className={styles.registerBtn}
+            onClick={() => setRegisterOpen(true)}
+          >
+            REGISTER AN API
+          </button>
         </div>
 
         <div className={styles.statsGrid}>
@@ -106,6 +115,11 @@ export default function ProviderApisPage() {
             ))}
           </div>
         </section>
+
+        <RegisterApiModal
+          open={registerOpen}
+          onClose={() => setRegisterOpen(false)}
+        />
       </main>
     </div>
   )

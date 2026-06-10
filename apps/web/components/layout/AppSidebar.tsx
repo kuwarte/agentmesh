@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount, useConnect, useConnections, useDisconnect } from "wagmi";
 import { morph } from "@/lib/chains";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import styles from "./AppSidebar.module.css";
 
 const NAV_ITEMS = [
@@ -103,6 +104,8 @@ export default function AppSidebar() {
 
       {/* Bottom */}
       <div className={styles.bottom}>
+        <ThemeToggle compact />
+
         <Link href="/provider" className={styles.providerBtn}>
           <svg
             width="14"

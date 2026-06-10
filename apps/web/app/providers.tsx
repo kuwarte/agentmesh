@@ -10,6 +10,7 @@ import {
 import { coinbaseWallet, walletConnect } from 'wagmi/connectors'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { morph } from '@/lib/chains'
+import { ThemeProvider } from '@/components/theme/ThemeProvider'
 
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
 
@@ -42,7 +43,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </QueryClientProvider>
     </WagmiProvider>
   )

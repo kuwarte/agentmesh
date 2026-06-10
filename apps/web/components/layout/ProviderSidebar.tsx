@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAccount, useDisconnect } from 'wagmi'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 import styles from './AppSidebar.module.css'
 
 const PROVIDER_NAV = [
@@ -100,6 +101,8 @@ export default function ProviderSidebar() {
 
       {/* Bottom */}
       <div className={styles.bottom}>
+        <ThemeToggle compact />
+
         {isConnected ? (
           <>
             {/* Live wallet address chip */}
