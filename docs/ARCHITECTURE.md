@@ -1,4 +1,4 @@
-# AgentMesh — System Architecture
+# Agent Mesh — System Architecture
 
 ---
 
@@ -112,19 +112,19 @@ AI Agent                Gateway (Express)           Morph L2
   │ ─────────────────────────────────────► │
   │ ◄───────────────────────────────────── │
   │    [{ name, callUrl, pricePerCall }]   │
-
+  |                                        |   
   │  2. GET /payment/nonce                 │
   │ ─────────────────────────────────────► │
   │ ◄───────────────────────────────────── │
   │    { nonce, deadline }                 │
-
+  |                                        |
   │  3. Sign off-chain                     │
   │    keccak256(                          │
   │      facilitator + payer +             │
-  │      provider   + amount +            │
-  │      nonce      + deadline            │
+  │      provider   + amount +             │
+  │      nonce      + deadline             │
   │    )                                   │
-
+  |                                        |               
   │  4. Call paid API                      │
   │    X-Payment: base64({                 │
   │      payer, provider, amount,          │
@@ -304,8 +304,8 @@ agent.run() event sequence
                   └──────┬───────┘
                          │ settle()
                          ▼
-                  ┌──────────────────────┐       ┌──────────────┐
-  Agent  ───sig──►│  X402               │──99%──►│  Provider    │
+                  ┌──────────────────────┐        ┌──────────────┐
+  Agent  ───sig──►│  X402                │──99%──►│  Provider    │
   wallet          │  Facilitator.sol     │        │  wallet      │
                   │                      │──1%───►│  Treasury    │
                   │  • verify ECDSA      │        └──────────────┘

@@ -1,8 +1,8 @@
-# AgentMesh
+# Agent Mesh
 
 **Autonomous AI agents that discover, pay for, and call APIs — no human in the loop.**
 
-AgentMesh is an x402 agentic payment platform built on [Morph L2](https://morphl2.io). It lets AI agents autonomously purchase API access using on-chain USDC micropayments, with a 1% platform fee and 99% going directly to API providers.
+Agent Mesh is an x402 agentic payment platform built on [Morph L2](https://morphl2.io). It lets AI agents autonomously purchase API access using on-chain USDC micropayments, with a 1% platform fee and 99% going directly to API providers.
 
 > **Marketplace** — [x402agentmesh.vercel.app](https://x402agentmesh.vercel.app) · Built on Morph Hoodi Testnet · Chain ID `2910`
 
@@ -94,16 +94,18 @@ The gateway ships with four built-in paid APIs that auto-register on-chain at st
 
 ## Backend API Routes
 
+**Public**
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/config` | Network info, contract addresses, quickstart guide |
+| `GET` | `/api/v1/catalog` | Full service catalog with prices (no payment required) |
+
 **Paid APIs** (require `X-Payment` header)
 
 | Method | Route | Description |
 |---|---|---|
-| `GET` | `/api/v1/catalog` | Full service catalog with prices |
-| `GET` | `/api/v1/btc` | BTC/USD price — $0.001 USDC |
-| `GET` | `/api/v1/eth` | ETH/USD price — $0.001 USDC |
-| `GET` | `/api/v1/sol` | SOL/USD price — $0.0005 USDC |
-| `GET` | `/api/v1/gas` | Gas tracker — $0.0005 USDC |
-| `GET` | `/api/v1/call/:apiId` | Proxy to any registered API |
+| `GET/POST` | `/api/v1/call/:apiId` | Universal proxy — calls any registered API after verifying payment |
 
 **Payment**
 
@@ -112,14 +114,28 @@ The gateway ships with four built-in paid APIs that auto-register on-chain at st
 | `GET` | `/payment/nonce` | Get fresh nonce + deadline (5 min TTL) |
 | `POST` | `/payment/verify` | Pre-flight signature check |
 | `GET` | `/payment/balance/:address` | USDC balance |
+| `GET` | `/payment/status` | Facilitator contract status |
 
 **Registry**
 
 | Method | Route | Description |
 |---|---|---|
-| `GET` | `/registry/apis` | List all on-chain APIs |
-| `POST` | `/registry/register` | Register a new API |
-| `PUT` | `/registry/api/:id` | Update price or active status |
+| `GET` | `/registry/apis` | List all on-chain APIs (marketplace) |
+| `GET` | `/registry/api/:id` | Single API detail merged with metadata |
+| `GET` | `/registry/slug/:slug` | Resolve a URL slug to API detail |
+| `GET` | `/registry/provider/:address` | All APIs registered by a provider |
+| `GET` | `/registry/categories` | Distinct categories for marketplace filter |
+| `GET` | `/registry/stats` | Total API count + chain status |
+| `POST` | `/registry/register` | Register a new API on-chain *(requires `x-internal-key`)* |
+| `PUT` | `/registry/api/:id` | Update price or active status *(requires `x-internal-key`)* |
+| `POST` | `/registry/metadata/:id` | Submit off-chain metadata (category, tags, description) |
+
+**Dashboard & Provider**
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/dashboard/:address` | Earnings + activity for a wallet |
+| `GET` | `/provider/:address` | Provider portal — APIs + stats |
 
 **Faucet (testnet)**
 
@@ -155,13 +171,14 @@ console.log(result.metrics);
 
 | Option | Default | Description |
 |---|---|---|
-| `gateway` | `$GATEWAY_URL` or `localhost:3001` | x402 gateway URL |
+| `gateway` | `$GATEWAY_URL` or `http://localhost:3001` | x402 gateway URL — must include `https://` scheme |
 | `privateKey` | `$AGENT_PRIVATE_KEY` | Agent wallet private key |
 | `facilitator` | `$X402_FACILITATOR_ADDRESS` | Facilitator contract address |
 | `llm.provider` | `"groq"` | `"groq"` or `"openai"` |
 | `llm.apiKey` | `$GROQ_API_KEY` | LLM provider API key |
 | `autoMint` | `false` | Auto-mint test USDC when balance is 0 |
 | `autoApprove` | `false` | Auto-approve USDC spending |
+| `verbose` | `false` | Rich terminal UI with live status |
 | `maxLoops` | `10` | Max AI reasoning iterations |
 | `settleDelay` | `3000` | ms to wait after each payment (allow on-chain settle) |
 | `onEvent` | `null` | Event hook `(type, payload) => void` |
@@ -249,16 +266,22 @@ forge script script/Deploy.s.sol \
 RPC_URL=https://rpc-hoodi.morphl2.io
 CHAIN_NAME=morph_hoodi
 GATEWAY_PRIVATE_KEY=<YOUR_PRIVATE_KEY>
-GATEWAY_URL=http://localhost:3001              # change to your deployed URL before first run
+GATEWAY_URL=https://your-backend.railway.app  # must include https:// — used to register built-in endpoints on-chain
 API_REGISTRY_ADDRESS=0x007c677F96A5E934D84502Ccd81FD161023b2cfA
 X402_FACILITATOR_ADDRESS=0x980938b322d653789dE859b4aB0119C0b02016f4
 USDC_ADDRESS=0xC6F74786d5a0149611a77a2C2ABE1A049C48d492
 PROVIDER_ADDRESS=<YOUR_WALLET_ADDRESS>
 TREASURY_ADDRESS=<YOUR_WALLET_ADDRESS>
 FACILITATOR_DEPLOY_BLOCK=5652133          # avoids scanning from block 0
+INTERNAL_API_KEY=<RANDOM_SECRET>          # protects POST /registry/register and PUT /registry/api/:id
 ```
 
-> `GATEWAY_URL` must be set to your actual public URL before the first run. At startup the server calls `autoRegisterBuiltins()` which registers the built-in feed endpoints on-chain using this value. If it's left as `localhost`, those entries on-chain will point to an unreachable address.
+> `GATEWAY_URL` must be a full URL including the `https://` scheme (e.g. `https://your-backend.railway.app`). At startup the server calls `autoRegisterBuiltins()` which registers the built-in feed endpoints on-chain using this value. If it's missing the scheme or left as `localhost`, those entries on-chain will point to an unreachable address and the agent SDK will throw `ERR_INVALID_URL`.
+>
+> `INTERNAL_API_KEY` guards the registry write endpoints. Generate one with:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+> ```
 
 ### 5 — Start the backend
 
@@ -298,10 +321,11 @@ cast send 0xC6F74786d5a0149611a77a2C2ABE1A049C48d492 "mint()" \
 cd packages/x402-agent-sdk
 cp .env.example .env
 # Fill in GROQ_API_KEY and AGENT_PRIVATE_KEY
-node index.js
+# Make sure GATEWAY_URL includes the https:// scheme, e.g.:
+#   GATEWAY_URL=https://apiagentmesh-production.up.railway.app
 ```
 
-Or use the standalone demo:
+Then run the standalone demo:
 
 ```bash
 cd demo-agent
@@ -325,6 +349,7 @@ forge test -vv
 
 | Error | Fix |
 |---|---|
+| `ERR_INVALID_URL` | `GATEWAY_URL` is missing the `https://` scheme — e.g. use `https://your-backend.railway.app` not just `your-backend.railway.app` |
 | `RPC not available` | Check https://rpc-hoodi.morphl2.io status |
 | `Invalid signature` | `payer` in `X-Payment` must match the signing wallet; check `FACILITATOR_ADDRESS` matches across `.env` files |
 | `Nonce used` | Nonces are single-use — fetch a fresh one from `GET /payment/nonce` |
@@ -332,6 +357,8 @@ forge test -vv
 | `Cooldown active` | Faucet allows 1 mint/hr per wallet — check `GET /faucet/status/:address` |
 | `Expired` | Nonces expire in 5 minutes |
 | `ABIs not found` | Run `forge build` in `packages/contracts` first |
+| `403 Forbidden` on `/registry/register` | Set `INTERNAL_API_KEY` in `.env` and pass it as `x-internal-key` header |
+| Built-in feeds skip registration on redeploy | Deactivating an API doesn't remove it from the name check — see the note in `autoRegisterBuiltins()` in `src/routes/api.routes.ts` |
 | Slow ledger replay on startup | Set `FACILITATOR_DEPLOY_BLOCK` in `.env` to the deployment block number |
 
 ---
@@ -362,4 +389,4 @@ forge test -vv
 
 ---
 
-*De-Finitely Broke*
+*@authors De-Finitely Broke*
