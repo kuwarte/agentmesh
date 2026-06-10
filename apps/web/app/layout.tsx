@@ -53,7 +53,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: '#080c0a',
-  colorScheme: 'dark',
+  colorScheme: 'dark light',
   width: 'device-width',
   initialScale: 1,
 }
@@ -62,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
+      data-theme="light"
       className={`${spaceMono.variable} ${syne.variable} ${lexend.variable}`}
       suppressHydrationWarning
     >

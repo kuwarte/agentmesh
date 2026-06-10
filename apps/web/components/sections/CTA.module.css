@@ -96,6 +96,14 @@
               box-shadow   var(--duration-base) var(--ease-in-out);
 }
 
+:global([data-theme="light"]) .formWrap {
+  background: rgba(255, 255, 255, 0.78);
+  border-color: rgba(0, 99, 50, 0.14);
+  box-shadow:
+    0 12px 34px rgba(16, 32, 24, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
 .formWrap:focus-within {
   border-color: rgba(34, 240, 120, 0.22);
   box-shadow:
@@ -143,6 +151,10 @@
   color: rgba(255, 255, 255, 0.25);
   font-family: var(--font-body);
   font-size: 0.82rem;
+}
+
+:global([data-theme="light"]) .input::placeholder {
+  color: rgba(16, 32, 24, 0.35);
 }
 
 /* ── Submit button ──────────────────────────────────── */

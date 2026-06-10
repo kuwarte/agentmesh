@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import styles from "./Navbar.module.css";
 
 const NAV_LINKS = [
@@ -56,6 +57,8 @@ export default function Navbar() {
               ))}
             </nav>
 
+            <ThemeToggle />
+
             <button
               className={styles.hamburger}
               onClick={() => setMenuOpen((o) => !o)}
@@ -94,6 +97,7 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
+          <ThemeToggle />
         </nav>
       </div>
     </>

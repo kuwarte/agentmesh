@@ -10,6 +10,8 @@ import {
 } from 'recharts'
 import { useAccount, useConnect } from 'wagmi'
 import ProviderSidebar from '@/components/layout/ProviderSidebar'
+import { morph } from '@/lib/chains'
+import RegisterApiModal from './RegisterApiModal'
 import styles from './Provider.module.css'
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -62,10 +64,20 @@ const BREAKDOWN = [
 // ─── Connect Modal Component ──────────────────────────────────────────────────
 
 function ConnectModal() {
-  const { connect, connectors, isPending } = useConnect()
+  const { connect, connectors, error, isPending } = useConnect()
   
-  // Dynamically targets your injected/available browser extension wallet wrapper
-  const availableConnector = connectors[0]
+  const availableConnector =
+    connectors.find((connector) => connector.type === 'injected') ??
+    connectors[0]
+
+  const handleConnect = () => {
+    if (!availableConnector) return
+
+    connect({
+      connector: availableConnector,
+      chainId: morph.id,
+    })
+  }
 
   return (
     <div className={styles.modalOverlay}>
@@ -85,7 +97,7 @@ function ConnectModal() {
         <div className={styles.modalList}>
           <div className={styles.modalListItem}>
             <span className={styles.listDot} />
-            Register endpoints — permissionless, no approval
+            Register endpoints - permissionless, no approval
           </div>
           <div className={styles.modalListItem}>
             <span className={styles.listDot} />
@@ -104,13 +116,14 @@ function ConnectModal() {
         {/* Unified, single option wallet execution button */}
         <button
           className={styles.modalConnectBtn}
-          onClick={() => connect({ connector: availableConnector })}
+          onClick={handleConnect}
           disabled={isPending || !availableConnector}
         >
           {isPending ? 'Connecting...' : 'Connect Wallet'}
         </button>
+        {error ? <p className={styles.modalError}>{error.message}</p> : null}
 
-        <span className={styles.modalFooter}>Morph L2 · EIP-1193 compatible</span>
+        <span className={styles.modalFooter}>Morph L2 - EIP-1193 compatible</span>
       </div>
     </div>
   )
@@ -121,6 +134,7 @@ function ConnectModal() {
 function Dashboard() {
   const { address } = useAccount()
   const [breakdownPeriod, setBreakdownPeriod] = useState('ALL')
+  const [registerOpen, setRegisterOpen] = useState(false)
 
   const shortAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -140,7 +154,12 @@ function Dashboard() {
             </svg>
           </div>
         </div>
-        <button className={styles.registerBtn}>REGISTER AN API</button>
+        <button
+          className={styles.registerBtn}
+          onClick={() => setRegisterOpen(true)}
+        >
+          REGISTER AN API
+        </button>
       </div>
 
       {/* Balance Card */}
@@ -149,7 +168,7 @@ function Dashboard() {
         <div className={styles.balanceValue}>
           4,284.41 <span className={styles.balanceCurrency}>USDC</span>
         </div>
-        <div className={styles.balanceTrend}>▲ +0.0203 USDC</div>
+        <div className={styles.balanceTrend}>+0.0203 USDC</div>
       </div>
 
       {/* Stats Row */}
@@ -299,6 +318,11 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      <RegisterApiModal
+        open={registerOpen}
+        onClose={() => setRegisterOpen(false)}
+      />
     </main>
   )
 }

@@ -46,6 +46,13 @@
   --color-border-default: rgba(0, 255, 136, 0.15);
   --color-border-strong:  rgba(0, 255, 136, 0.30);
 
+  /* Provider/dashboard aliases */
+  --provider-bg-base: #020504;
+  --provider-bg-panel: #050908;
+  --provider-text-strong: #f4f7f5;
+  --provider-soft-line: rgba(34, 240, 120, 0.08);
+  --provider-card-border: rgba(34, 240, 120, 0.18);
+
   /* Radius */
   --radius-sm:   4px;
   --radius-md:   8px;
@@ -78,6 +85,33 @@
   --duration-slow:   400ms;
 }
 
+:root[data-theme="light"] {
+  --color-bg-base:     #f4f7f1;
+  --color-bg-surface:  #ffffff;
+  --color-bg-elevated: #edf5ec;
+
+  --color-accent:             #008a45;
+  --color-accent-dim:         #05753e;
+  --color-accent-dark:        #034323;
+  --color-accent-glow:        rgba(0, 138, 69, 0.12);
+  --color-accent-glow-strong: rgba(0, 138, 69, 0.2);
+
+  --color-text-primary: #102018;
+  --color-text-muted:   #456557;
+  --color-text-faint:   #8aa196;
+  --color-text-dark:    #ffffff;
+
+  --color-border-subtle:  rgba(0, 99, 50, 0.12);
+  --color-border-default: rgba(0, 99, 50, 0.22);
+  --color-border-strong:  rgba(0, 99, 50, 0.36);
+
+  --provider-bg-base: #f4f7f1;
+  --provider-bg-panel: #ffffff;
+  --provider-text-strong: #102018;
+  --provider-soft-line: rgba(0, 99, 50, 0.1);
+  --provider-card-border: rgba(0, 99, 50, 0.16);
+}
+
 /* ============================================================
    RESET
    ============================================================ */
@@ -106,6 +140,9 @@ body {
   background-color: var(--color-bg-base);
   overflow-x: hidden;
   position: relative;
+  transition:
+    background-color var(--duration-base) var(--ease-in-out),
+    color var(--duration-base) var(--ease-in-out);
 }
 
 img, video, svg {
@@ -221,6 +258,16 @@ body::before {
   z-index: 9999;
 }
 
+:root[data-theme="light"] body::before {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 99, 50, 0.008) 2px,
+    rgba(0, 99, 50, 0.008) 4px
+  );
+}
+
 /* Top radial glow */
 body::after {
   content: '';
@@ -237,6 +284,14 @@ body::after {
   );
   pointer-events: none;
   z-index: 0;
+}
+
+:root[data-theme="light"] body::after {
+  background: radial-gradient(
+    ellipse at center top,
+    rgba(0, 138, 69, 0.09) 0%,
+    transparent 70%
+  );
 }
 
 /* ============================================================
@@ -482,6 +537,11 @@ body::after {
   line-height: 1.7;
 }
 
+:root[data-theme="light"] .code-block {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: var(--color-border-subtle);
+}
+
 /* ============================================================
    NAV
    ============================================================ */
@@ -499,6 +559,10 @@ body::after {
   background: rgba(8, 12, 10, 0.85);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+:root[data-theme="light"] .nav {
+  background: rgba(244, 247, 241, 0.9);
 }
 
 .nav__inner {
