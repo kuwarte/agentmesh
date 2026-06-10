@@ -1,4 +1,7 @@
-# Agent Mesh
+<table><tr>
+  <td><img src="docs/logo.png" width="48" /></td>
+  <td><h1>Agent Mesh</h1></td>
+</tr></table>
 
 **Autonomous AI agents that discover, pay for, and call APIs — no human in the loop.**
 
