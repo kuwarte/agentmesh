@@ -1,0 +1,840 @@
+/* ============================================================
+   DOCS PAGE
+   Avoid .section and .card — those are global utility
+   classes in globals.css and will bleed in.
+   ============================================================ */
+
+/* ── Shell ─────────────────────────────────────────────────── */
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-bg-base);
+}
+
+/* ── Body = TOC + main ─────────────────────────────────────── */
+.body {
+  margin-left: 220px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+/* ── Sticky TOC ────────────────────────────────────────────── */
+.tocWrap {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border-subtle);
+  padding: var(--space-10) var(--space-6) var(--space-10) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+}
+
+.tocLabel {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-4) 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.toc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.tocLink {
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  display: block;
+  padding: 0.5em 0.75em;
+  line-height: 1.5;
+  white-space: nowrap;
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+
+.tocLink:hover {
+  color: var(--color-text-primary);
+  background: rgba(34, 240, 120, 0.05);
+}
+
+/* ── Main ──────────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  min-width: 0;
+  max-width: 860px;
+  padding: var(--space-12) var(--space-10) var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Eyebrow ───────────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin: 0 0 var(--space-3) 0;
+}
+
+/* ── Hero ──────────────────────────────────────────────────── */
+.hero {
+  padding-bottom: var(--space-12);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 3vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-6) 0;
+}
+
+.heroTitleAccent {
+  color: var(--color-accent);
+}
+
+.heroSub {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.8;
+  max-width: 62ch;
+  margin: 0 0 var(--space-8) 0;
+}
+
+.heroCtas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.heroStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.statPill {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: .5rem;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  min-width: 110px;
+}
+
+.statLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* ── CTA buttons ───────────────────────────────────────────── */
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 1.2rem;
+  background: var(--color-accent);
+  color: var(--color-text-dark);
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: transform var(--duration-fast) var(--ease-expo),
+              box-shadow var(--duration-fast) var(--ease-expo);
+}
+
+.ctaPrimary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px var(--color-accent-glow-strong);
+}
+
+.ctaGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 1.2rem;
+  border: 1px solid var(--color-border-default);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: transform var(--duration-fast) var(--ease-expo),
+              border-color var(--duration-fast);
+}
+
+.ctaGhost:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-border-strong);
+}
+
+/* ── Divider ───────────────────────────────────────────────── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--color-border-subtle);
+  margin: 0;
+}
+
+/* ── Doc section (renamed from .section to avoid global conflict) */
+.docSection {
+  padding: var(--space-12) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/* ── Section heading block ─────────────────────────────────── */
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 72ch;
+}
+
+.sectionHead h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.sectionHead h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.sectionHead p {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.8;
+  max-width: 68ch;
+  margin: 0;
+}
+
+/* override global inline code pill inside section headings */
+.sectionHead code {
+  font-family: var(--font-mono) !important;
+  font-size: 0.82em !important;
+  color: var(--color-accent) !important;
+  background: rgba(34, 240, 120, 0.07) !important;
+  border: 1px solid rgba(34, 240, 120, 0.14) !important;
+  padding: 0.1em 0.4em !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+/* ── 3-col feature cards ───────────────────────────────────── */
+.threeCol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.featureCard {
+  padding: var(--space-6);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transition: border-color var(--duration-base), box-shadow var(--duration-base);
+}
+
+.featureCard:hover {
+  border-color: var(--color-border-default);
+  box-shadow: 0 0 28px rgba(34, 240, 120, 0.04);
+}
+
+.featureIcon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(34, 240, 120, 0.06);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.featureCard h3 {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.featureCard p {
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.75;
+  margin: 0;
+}
+
+/* ── Numbered steps ────────────────────────────────────────── */
+.stepLabel {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.numberedSteps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  counter-reset: step;
+}
+
+.numberedSteps li {
+  counter-increment: step;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.75;
+  padding: .5rem;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.numberedSteps li::before {
+  content: counter(step, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--color-accent);
+  min-width: 1.8rem;
+  padding-top: 0.2em;
+  flex-shrink: 0;
+}
+
+
+.inlineLink {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Code blocks ───────────────────────────────────────────── */
+.codeStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.codeWrap {
+  border: 1px solid var(--color-border-subtle);
+  overflow: hidden;
+}
+
+.codeHeader {
+  display: flex;
+  align-items: center;
+  padding: .2rem;
+  background: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.codeHeader span {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.code {
+  margin: 0;
+  padding: .5rem;
+  background: var(--color-bg-surface);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.77rem;
+  font-weight: 400;
+  line-height: 1.75;
+  color: var(--color-text-primary);
+}
+
+/* reset the global inline code pill inside <pre> */
+.code code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+  border-radius: 0 !important;
+}
+
+/* ── Payment flow ──────────────────────────────────────────── */
+.flowList {
+  display: flex;
+  flex-direction: column;
+}
+
+.flowItem {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: var(--space-6);
+  padding-bottom: var(--space-8);
+}
+
+.flowLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.flowNum {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--color-accent);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border-default);
+  border-radius: 50%;
+  background: rgba(34, 240, 120, 0.05);
+  flex-shrink: 0;
+}
+
+.flowConnector {
+  flex: 1;
+  width: 1px;
+  background: var(--color-border-subtle);
+  min-height: 32px;
+}
+
+.flowItem:last-child .flowConnector {
+  display: none;
+}
+
+.flowRight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: 0.3rem;
+}
+
+.flowTitle {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.flowBody {
+  font-family: var(--font-body);
+  font-size: 0.87rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.8;
+  max-width: 62ch;
+  margin: 0;
+}
+
+.flowCode {
+  margin: 0;
+  padding: .4rem;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--color-accent);
+  overflow-x: auto;
+}
+
+.flowCode code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+/* ── SDK table ─────────────────────────────────────────────── */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead tr {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.table th {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  text-align: left;
+  padding: .4rem;
+  background: var(--color-bg-elevated);
+}
+
+.table td {
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  font-weight: 400;
+  padding: .5rem;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-subtle);
+  line-height: 1.6;
+  vertical-align: top;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover td {
+  background: rgba(34, 240, 120, 0.02);
+}
+
+/* inline code in table cells */
+.table td code {
+  font-family: var(--font-mono) !important;
+  font-size: 0.8em !important;
+  color: var(--color-accent) !important;
+  background: rgba(34, 240, 120, 0.07) !important;
+  border: 1px solid rgba(34, 240, 120, 0.14) !important;
+  padding: 0.1em 0.35em !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.typeBadge {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 400;
+  color: var(--color-accent-dim);
+  background: rgba(34, 240, 120, 0.06);
+  border: 1px solid rgba(34, 240, 120, 0.12);
+  padding: 0.15em 0.5em;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* ── Contract cards ────────────────────────────────────────── */
+.contractGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.contractCard {
+  padding: var(--space-6);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transition: border-color var(--duration-base);
+}
+
+.contractCard:hover {
+  border-color: var(--color-border-default);
+}
+
+.contractName {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.contractDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent-glow-strong);
+  flex-shrink: 0;
+}
+
+.contractName code {
+  font-family: var(--font-mono) !important;
+  font-size: 0.79rem !important;
+  color: var(--color-text-primary) !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.contractDesc {
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.75;
+  margin: 0;
+}
+
+.methodList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+  list-style: none;
+}
+
+.methodList li code {
+  font-family: var(--font-mono) !important;
+  font-size: 0.71rem !important;
+  color: var(--color-accent-dim) !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* ── Network ───────────────────────────────────────────────── */
+.networkGrid {
+  border: 1px solid var(--color-border-subtle);
+  overflow: hidden;
+}
+
+.networkRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.networkRow:last-child {
+  border-bottom: none;
+}
+
+.networkRow:hover {
+  background: rgba(34, 240, 120, 0.02);
+}
+
+.networkLabel {
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.networkValue {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+/* ── FAQ ───────────────────────────────────────────────────── */
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.faqItem {
+  padding: var(--space-6);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition: border-color var(--duration-base);
+}
+
+.faqItem:hover {
+  border-color: var(--color-border-default);
+}
+
+.faqQ {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.faqA {
+  font-family: var(--font-body);
+  font-size: 0.87rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.8;
+  max-width: 72ch;
+  margin: 0;
+}
+
+/* ── CTA strip ─────────────────────────────────────────────── */
+.ctaStrip {
+  margin-top: var(--space-12);
+  padding: var(--space-10);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  position: relative;
+  overflow: hidden;
+}
+
+.ctaStrip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 80% 50%, rgba(34, 240, 120, 0.05) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.ctaStripCopy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  position: relative;
+}
+
+.ctaStripCopy h2 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.ctaStripCopy p {
+  font-family: var(--font-body);
+  font-size: 0.87rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin: 0;
+  max-width: 48ch;
+}
+
+.ctaStripActions {
+  display: flex;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 1280px) {
+  .tocWrap { display: none; }
+}
+
+@media (max-width: 900px) {
+  .body { margin-left: 0; }
+}
+
+@media (max-width: 1100px) {
+  .threeCol     { grid-template-columns: 1fr 1fr; }
+  .contractGrid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 760px) {
+  .main {
+    padding-inline: var(--space-5);
+    padding-bottom: var(--space-16);
+  }
+
+  .heroTitle { font-size: 1.8rem; }
+
+  .threeCol,
+  .contractGrid { grid-template-columns: 1fr; }
+
+  .ctaStrip {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--space-8);
+  }
+
+  .ctaStripActions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .ctaPrimary,
+  .ctaGhost { width: 100%; justify-content: center; }
+
+  .flowItem    { grid-template-columns: 44px 1fr; }
+  .networkRow  { grid-template-columns: 120px 1fr; }
+}
